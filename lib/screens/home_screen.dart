@@ -119,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                             );
+                            await _loadData();
                           },
                         ),
                       ),
@@ -139,6 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                             );
+                            await _loadData();
                           },
                         ),
                       ),

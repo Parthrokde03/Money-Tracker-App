@@ -38,6 +38,32 @@ class ExpenseService {
         .toList();
   }
 
+  Future<void> updateExpense(int index, Expense updated) async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getStringList(_key) ?? [];
+    if (index >= 0 && index < data.length) {
+      data[index] = jsonEncode(updated.toJson());
+      await prefs.setStringList(_key, data);
+    }
+  }
+
+  Future<void> deleteExpense(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getStringList(_key) ?? [];
+    if (index >= 0 && index < data.length) {
+      data.removeAt(index);
+      await prefs.setStringList(_key, data);
+    }
+  }
+
+  /// Returns the index in the full list for a given expense
+  int findExpenseIndex(List<Expense> all, Expense target) {
+    return all.indexWhere((e) =>
+        e.label == target.label &&
+        e.amount == target.amount &&
+        e.dateTime.isAtSameMomentAs(target.dateTime));
+  }
+
   double getTotal(List<Expense> expenses) {
     return expenses.fold(0.0, (sum, e) => sum + e.amount);
   }
