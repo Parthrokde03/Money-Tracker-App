@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/expense.dart';
 import '../services/expense_service.dart';
+import 'calendar_screen.dart';
 import 'month_detail_screen.dart';
 import 'today_detail_screen.dart';
 
@@ -84,6 +85,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F1A),
       appBar: AppBar(
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         title: const Text(
           'Money Tracker',
           style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
@@ -92,6 +99,63 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFF1A1A2E),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+      ),
+      drawer: Drawer(
+        backgroundColor: const Color(0xFF1A1A2E),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFF4834DF)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.account_balance_wallet_rounded,
+                        color: Colors.white, size: 36),
+                    SizedBox(height: 12),
+                    Text(
+                      'Money Tracker',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.home_rounded, color: Colors.white70),
+                title: const Text('Home',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                onTap: () => Navigator.pop(context),
+              ),
+              ListTile(
+                leading: const Icon(Icons.calendar_month_rounded,
+                    color: Colors.white70),
+                title: const Text('Calendar',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CalendarScreen()),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
