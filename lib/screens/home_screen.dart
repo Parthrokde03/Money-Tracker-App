@@ -571,11 +571,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _showScanResultsSheet(List<SmsParseResult> results) {
     final scanResults = List<SmsParseResult>.from(results);
+    final selected = List<bool>.filled(scanResults.length, true);
     showModalBottomSheet(
       context: context, isScrollControlled: true, backgroundColor: _surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
+          final selectedCount = selected.where((s) => s).length;
+          final allSelected = selectedCount == scanResults.length;
           return Padding(
             padding: EdgeInsets.only(left: 24, right: 24, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -590,13 +593,47 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ]),
               const SizedBox(height: 6),
               const Text('Review detected transactions from your SMS inbox', style: TextStyle(color: _dimmed, fontSize: 11)),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               if (scanResults.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Text('No transactions to review', style: TextStyle(color: _dimmed, fontSize: 13)),
                 )
               else ...[
+                Row(children: [
+                  GestureDetector(
+                    onTap: () => setSheetState(() {
+                      final newVal = !allSelected;
+                      for (int i = 0; i < selected.length; i++) selected[i] = newVal;
+                    }),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      SizedBox(
+                        width: 20, height: 20,
+                        child: Checkbox(
+                          value: allSelected,
+                          tristate: selectedCount > 0 && !allSelected,
+                          onChanged: (_) => setSheetState(() {
+                            final newVal = !allSelected;
+                            for (int i = 0; i < selected.length; i++) selected[i] = newVal;
+                          }),
+                          activeColor: _accent,
+                          checkColor: Colors.white,
+                          side: const BorderSide(color: _dimmed, width: 1.5),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        allSelected ? 'Deselect All' : 'Select All',
+                        style: const TextStyle(color: _dimmed, fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
+                    ]),
+                  ),
+                  const Spacer(),
+                  Text('$selectedCount selected', style: const TextStyle(color: _dimmed, fontSize: 11)),
+                ]),
+                const SizedBox(height: 10),
                 ConstrainedBox(
                   constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
                   child: ListView.separated(
@@ -605,27 +642,49 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final r = scanResults[i];
-                      return Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
-                        child: Row(children: [
-                          Container(
-                            width: 28, height: 28,
-                            decoration: BoxDecoration(
-                              color: (r.isCredit ? _green : _red).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(7),
-                            ),
-                            child: Icon(r.isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                              color: r.isCredit ? _green : _red, size: 14),
+                      final isSelected = selected[i];
+                      return GestureDetector(
+                        onTap: () => setSheetState(() => selected[i] = !selected[i]),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isSelected ? _bg : _bg.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: isSelected ? _accent.withOpacity(0.5) : _border),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(r.label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                            Text(DateFormat('dd MMM · hh:mm a').format(r.dateTime), style: const TextStyle(color: _dimmed, fontSize: 9)),
-                          ])),
-                          Text('${r.isCredit ? '+' : '-'}₹${r.amount.toStringAsFixed(0)}',
-                            style: TextStyle(color: r.isCredit ? _green : _red, fontSize: 13, fontWeight: FontWeight.w700)),
-                        ]),
+                          child: Row(children: [
+                            SizedBox(
+                              width: 20, height: 20,
+                              child: Checkbox(
+                                value: isSelected,
+                                onChanged: (_) => setSheetState(() => selected[i] = !selected[i]),
+                                activeColor: _accent,
+                                checkColor: Colors.white,
+                                side: const BorderSide(color: _dimmed, width: 1.5),
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Container(
+                              width: 28, height: 28,
+                              decoration: BoxDecoration(
+                                color: (r.isCredit ? _green : _red).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              child: Icon(r.isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                                color: r.isCredit ? _green : _red, size: 14),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(r.label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                              Text(DateFormat('dd MMM · hh:mm a').format(r.dateTime), style: const TextStyle(color: _dimmed, fontSize: 9)),
+                            ])),
+                            Text('${r.isCredit ? '+' : '-'}₹${r.amount.toStringAsFixed(0)}',
+                              style: TextStyle(color: r.isCredit ? _green : _red, fontSize: 13, fontWeight: FontWeight.w700)),
+                          ]),
+                        ),
                       );
                     },
                   ),
@@ -640,25 +699,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       foregroundColor: _dimmed, side: const BorderSide(color: _border),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Dismiss All', style: TextStyle(fontSize: 13)),
+                    child: const Text('Dismiss', style: TextStyle(fontSize: 13)),
                   ))),
                   const SizedBox(width: 12),
                   Expanded(child: SizedBox(height: 46, child: ElevatedButton(
-                    onPressed: () async {
+                    onPressed: selectedCount == 0 ? null : () async {
                       int count = 0;
-                      for (final r in scanResults) {
-                        await _smsService.confirmTransaction(r);
-                        count++;
+                      for (int i = 0; i < scanResults.length; i++) {
+                        if (selected[i]) {
+                          await _smsService.confirmTransaction(scanResults[i]);
+                          count++;
+                        }
                       }
                       await _loadData();
                       if (ctx.mounted) Navigator.pop(ctx);
-                      _snack('$count transactions added');
+                      _snack('$count transaction${count == 1 ? '' : 's'} added');
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _accent, foregroundColor: Colors.white, elevation: 0,
+                      backgroundColor: _accent,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: _accent.withOpacity(0.3),
+                      disabledForegroundColor: Colors.white38,
+                      elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Confirm All', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    child: Text(
+                      allSelected ? 'Confirm All' : 'Confirm ($selectedCount)',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
                   ))),
                 ]),
               ],
