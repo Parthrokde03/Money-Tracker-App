@@ -142,7 +142,7 @@ lib/
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/money_tracker.git
+git clone https://github.com/Parthrokde03/money_tracker.git
 cd money_tracker
 
 # Install dependencies
