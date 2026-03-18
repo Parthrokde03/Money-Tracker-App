@@ -1,254 +1,172 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../models/expense.dart';
-import '../services/expense_service.dart';
+import '../models/transaction.dart';
+import '../services/transaction_service.dart';
+
+const _bg = Color(0xFF0F0F1A);
+const _surface = Color(0xFF1A1A2E);
+const _accent = Color(0xFF6C63FF);
+const _green = Color(0xFF2ECC71);
+const _red = Color(0xFFFF6B6B);
+const _orange = Color(0xFFE67E22);
+const _border = Color(0x0FFFFFFF);
+const _dimmed = Color(0x59FFFFFF);
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
-
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  final _service = ExpenseService();
-  List<Expense> _allExpenses = [];
+  final _service = TransactionService();
+  List<Transaction> _all = [];
   bool _loading = true;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-
-  /// Daily totals keyed by date string (yyyy-MM-dd)
-  Map<String, double> _dailyTotals = {};
+  Map<String, double> _dailyExpenseTotals = {};
 
   @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
+  void initState() { super.initState(); _loadData(); }
 
   Future<void> _loadData() async {
-    final expenses = await _service.loadExpenses();
+    final txns = await _service.loadTransactions();
     final Map<String, double> totals = {};
-    for (final e in expenses) {
-      final key = DateFormat('yyyy-MM-dd').format(e.dateTime);
-      totals[key] = (totals[key] ?? 0) + e.amount;
+    for (final t in txns.where((t) => t.isExpense)) {
+      final key = DateFormat('yyyy-MM-dd').format(t.dateTime);
+      totals[key] = (totals[key] ?? 0) + t.amount;
     }
-    setState(() {
-      _allExpenses = expenses;
-      _dailyTotals = totals;
-      _loading = false;
-    });
+    setState(() { _all = txns; _dailyExpenseTotals = totals; _loading = false; });
   }
 
-  String _formatCurrency(double value) {
-    return NumberFormat.currency(symbol: '₹', decimalDigits: 2).format(value);
+  String _fmt(double v) => NumberFormat.currency(symbol: '₹', decimalDigits: 2).format(v);
+
+  List<Transaction> _getForDay(DateTime day) =>
+    _all.where((t) => t.dateTime.year == day.year && t.dateTime.month == day.month && t.dateTime.day == day.day).toList();
+
+  Color _txnColor(Transaction t) { if (t.isIncome) return _green; if (t.isBillPayment) return _orange; return _red; }
+  String _txnPrefix(Transaction t) => t.isIncome ? '+' : '-';
+
+  String _txnTag(Transaction t) {
+    if (t.isIncome) return 'Income';
+    if (t.isBillPayment) return 'Bill Payment';
+    final catLabel = t.category?.label ?? '';
+    final via = t.paidVia == PaidVia.creditCard ? 'Credit Card' : 'Bank';
+    return catLabel.isNotEmpty ? '$catLabel · $via' : via;
   }
 
-  List<Expense> _getExpensesForDay(DateTime day) {
-    return _allExpenses.where((e) =>
-        e.dateTime.year == day.year &&
-        e.dateTime.month == day.month &&
-        e.dateTime.day == day.day).toList();
+  IconData _txnIcon(Transaction t) {
+    if (t.isIncome) return Icons.arrow_downward_rounded;
+    if (t.isBillPayment) return Icons.receipt_long_rounded;
+    return t.category?.icon ?? Icons.shopping_bag_rounded;
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedExpenses = _selectedDay != null
-        ? _getExpensesForDay(_selectedDay!)
-        : <Expense>[];
-    final selectedTotal = _service.getTotal(selectedExpenses);
+    final selectedTxns = _selectedDay != null ? _getForDay(_selectedDay!) : <Transaction>[];
+    final selectedExpenseTotal = _service.getExpenseTotal(selectedTxns);
+    final selectedIncomeTotal = _service.getIncomeTotal(selectedTxns);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
+      backgroundColor: _bg,
       appBar: AppBar(
-        title: const Text(
-          'Calendar',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF1A1A2E),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
+        title: const Text('Calendar', style: TextStyle(fontWeight: FontWeight.w700)),
+        centerTitle: true, backgroundColor: _surface, elevation: 0, surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _buildCalendar(),
-                if (_selectedDay != null) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
-                    child: Row(
-                      children: [
-                        Text(
-                          DateFormat('dd MMM yyyy').format(_selectedDay!),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          _formatCurrency(selectedTotal),
-                          style: const TextStyle(
-                            color: Color(0xFF6C63FF),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(
-                      color: Colors.white12, height: 1, indent: 20, endIndent: 20),
-                  Expanded(
-                    child: selectedExpenses.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No expenses on this day',
-                              style: TextStyle(color: Colors.white38),
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 8),
-                            itemCount: selectedExpenses.length,
-                            itemBuilder: (_, i) {
-                              final e = selectedExpenses[i];
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 10),
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1A1A2E),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                      color: Colors.white.withOpacity(0.06)),
+          ? const Center(child: CircularProgressIndicator(color: _accent))
+          : Column(children: [
+              _buildCalendar(),
+              if (_selectedDay != null) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: Row(children: [
+                    Text(DateFormat('dd MMM yyyy').format(_selectedDay!),
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    if (selectedIncomeTotal > 0)
+                      Padding(padding: const EdgeInsets.only(right: 10),
+                        child: Text('+${_fmt(selectedIncomeTotal)}', style: const TextStyle(color: _green, fontSize: 12, fontWeight: FontWeight.w600))),
+                    if (selectedExpenseTotal > 0)
+                      Text('-${_fmt(selectedExpenseTotal)}', style: const TextStyle(color: _red, fontSize: 14, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+                const Divider(color: _border, height: 1, indent: 20, endIndent: 20),
+                Expanded(
+                  child: selectedTxns.isEmpty
+                      ? const Center(child: Text('No transactions on this day', style: TextStyle(color: _dimmed, fontSize: 13)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: selectedTxns.length,
+                          itemBuilder: (_, i) {
+                            final t = selectedTxns[i];
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
+                              child: Row(children: [
+                                Container(
+                                  width: 32, height: 32,
+                                  decoration: BoxDecoration(color: _txnColor(t).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                  child: Icon(_txnIcon(t), color: _txnColor(t), size: 15),
                                 ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            e.label,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            DateFormat('hh:mm a')
-                                                .format(e.dateTime),
-                                            style: const TextStyle(
-                                              color: Colors.white38,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatCurrency(e.amount),
-                                      style: const TextStyle(
-                                        color: Color(0xFFFF6B6B),
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ] else
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        'Tap a date to see expenses',
-                        style: TextStyle(color: Colors.white38, fontSize: 14),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+                                const SizedBox(width: 10),
+                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(t.label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                                  const SizedBox(height: 2),
+                                  Text('${_txnTag(t)} · ${DateFormat('hh:mm a').format(t.dateTime)}',
+                                    style: const TextStyle(color: _dimmed, fontSize: 11)),
+                                ])),
+                                Text('${_txnPrefix(t)}${_fmt(t.amount)}',
+                                  style: TextStyle(color: _txnColor(t), fontSize: 14, fontWeight: FontWeight.w700)),
+                              ]),
+                            );
+                          },
+                        ),
+                ),
+              ] else
+                const Expanded(child: Center(child: Text('Tap a date to see transactions', style: TextStyle(color: _dimmed, fontSize: 13)))),
+            ]),
     );
   }
 
   Widget _buildCalendar() {
     return Container(
       margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
-      ),
-      child: TableCalendar<Expense>(
-        firstDay: DateTime(2020),
-        lastDay: DateTime(2030),
-        focusedDay: _focusedDay,
+      decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
+      child: TableCalendar<Transaction>(
+        firstDay: DateTime(2020), lastDay: DateTime(2030), focusedDay: _focusedDay,
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-        onDaySelected: (selected, focused) {
-          setState(() {
-            _selectedDay = selected;
-            _focusedDay = focused;
-          });
-        },
-        onPageChanged: (focused) {
-          _focusedDay = focused;
-        },
+        onDaySelected: (selected, focused) => setState(() { _selectedDay = selected; _focusedDay = focused; }),
+        onPageChanged: (focused) => _focusedDay = focused,
         calendarFormat: CalendarFormat.month,
         availableCalendarFormats: const {CalendarFormat.month: 'Month'},
         headerStyle: const HeaderStyle(
-          formatButtonVisible: false,
-          titleCentered: true,
-          titleTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-          leftChevronIcon:
-              Icon(Icons.chevron_left, color: Colors.white70),
-          rightChevronIcon:
-              Icon(Icons.chevron_right, color: Colors.white70),
+          formatButtonVisible: false, titleCentered: true,
+          titleTextStyle: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+          leftChevronIcon: Icon(Icons.chevron_left, color: Colors.white54, size: 20),
+          rightChevronIcon: Icon(Icons.chevron_right, color: Colors.white54, size: 20),
         ),
         daysOfWeekStyle: const DaysOfWeekStyle(
-          weekdayStyle: TextStyle(color: Colors.white54, fontSize: 13),
-          weekendStyle: TextStyle(color: Colors.white38, fontSize: 13),
+          weekdayStyle: TextStyle(color: Colors.white38, fontSize: 12),
+          weekendStyle: TextStyle(color: Colors.white24, fontSize: 12),
         ),
         calendarStyle: CalendarStyle(
           outsideDaysVisible: false,
           defaultTextStyle: const TextStyle(color: Colors.white),
           weekendTextStyle: const TextStyle(color: Colors.white70),
-          todayDecoration: BoxDecoration(
-            color: const Color(0xFF6C63FF).withOpacity(0.3),
-            shape: BoxShape.circle,
-          ),
-          todayTextStyle: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w600),
-          selectedDecoration: const BoxDecoration(
-            color: Color(0xFF6C63FF),
-            shape: BoxShape.circle,
-          ),
-          selectedTextStyle: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w700),
+          todayDecoration: BoxDecoration(color: _accent.withOpacity(0.25), shape: BoxShape.circle),
+          todayTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          selectedDecoration: const BoxDecoration(color: _accent, shape: BoxShape.circle),
+          selectedTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
           cellMargin: const EdgeInsets.all(6),
         ),
         calendarBuilders: CalendarBuilders(
-          defaultBuilder: (context, day, focusedDay) =>
-              _buildDayCell(day, false, false),
-          todayBuilder: (context, day, focusedDay) =>
-              _buildDayCell(day, true, false),
-          selectedBuilder: (context, day, focusedDay) =>
-              _buildDayCell(day, false, true),
+          defaultBuilder: (context, day, focusedDay) => _buildDayCell(day, false, false),
+          todayBuilder: (context, day, focusedDay) => _buildDayCell(day, true, false),
+          selectedBuilder: (context, day, focusedDay) => _buildDayCell(day, false, true),
         ),
       ),
     );
@@ -256,44 +174,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildDayCell(DateTime day, bool isToday, bool isSelected) {
     final key = DateFormat('yyyy-MM-dd').format(day);
-    final total = _dailyTotals[key];
+    final total = _dailyExpenseTotals[key];
 
     return Container(
       margin: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: isSelected
-            ? const Color(0xFF6C63FF)
-            : isToday
-                ? const Color(0xFF6C63FF).withOpacity(0.3)
-                : null,
-        borderRadius: BorderRadius.circular(10),
+        color: isSelected ? _accent : isToday ? _accent.withOpacity(0.25) : null,
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            '${day.day}',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight:
-                  isSelected || isToday ? FontWeight.w700 : FontWeight.w400,
-            ),
-          ),
-          if (total != null)
-            Text(
-              '₹${total.toStringAsFixed(0)}',
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white70
-                    : const Color(0xFFFF6B6B),
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-        ],
-      ),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Text('${day.day}', style: TextStyle(color: Colors.white, fontSize: 13,
+          fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w400)),
+        if (total != null)
+          Text('₹${total.toStringAsFixed(0)}', style: TextStyle(
+            color: isSelected ? Colors.white70 : _red, fontSize: 8, fontWeight: FontWeight.w600),
+            overflow: TextOverflow.ellipsis),
+      ]),
     );
   }
 }
