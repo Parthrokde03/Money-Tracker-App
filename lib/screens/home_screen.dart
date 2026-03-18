@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../models/transaction.dart';
 import '../services/transaction_service.dart';
 import '../services/auth_service.dart';
+import '../services/sms_service.dart';
+import '../services/sms_parser.dart';
 import 'calendar_screen.dart';
 import 'month_detail_screen.dart';
 import 'today_detail_screen.dart';
@@ -26,27 +28,58 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _billAmountController = TextEditingController();
   final _billFormKey = GlobalKey<FormState>();
   final _service = TransactionService();
   final _auth = AuthService();
+  final _smsService = SmsService();
 
   List<Transaction> _all = [];
+  List<SmsParseResult> _pendingSms = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _auth.addListener(_onAuthChange);
+    _initSms();
     _loadData();
   }
 
   void _onAuthChange() { if (mounted) setState(() {}); }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkForNewSms();
+    }
+  }
+
+  Future<void> _checkForNewSms() async {
+    if (!_smsService.isEnabled) return;
+    final results = await _smsService.checkNewSms();
+    if (results.isNotEmpty && mounted) {
+      setState(() => _pendingSms = List.from(_smsService.pending));
+    }
+  }
+
+  Future<void> _initSms() async {
+    await _smsService.init();
+    _smsService.onNewTransactions = (results) {
+      if (mounted) setState(() => _pendingSms = List.from(_smsService.pending));
+    };
+    // Check for any SMS that arrived while app was closed
+    _checkForNewSms();
+  }
+
   Future<void> _loadData() async {
     final txns = await _service.loadTransactions();
+    if (!mounted) return;
     setState(() { _all = txns; _loading = false; });
+    // Also check for new SMS on every data reload (pull-to-refresh, screen return)
+    _checkForNewSms();
   }
 
   String _fmt(double v) =>
@@ -60,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _auth.removeListener(_onAuthChange);
     _billAmountController.dispose();
     super.dispose();
@@ -355,6 +389,286 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
   }
 
+  // ── SMS Pending Banner ──
+  Widget _buildSmsBanner() {
+    if (_pendingSms.isEmpty) return const SizedBox.shrink();
+    return GestureDetector(
+      onTap: _showSmsReviewSheet,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1B3A2D),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _green.withOpacity(0.2)),
+        ),
+        child: Row(children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(color: _green.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+            child: const Icon(Icons.sms_rounded, color: _green, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${_pendingSms.length} SMS transaction${_pendingSms.length > 1 ? 's' : ''} detected',
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 2),
+            const Text('Tap to review and confirm', style: TextStyle(color: _dimmed, fontSize: 10)),
+          ])),
+          const Icon(Icons.chevron_right_rounded, color: _green, size: 20),
+        ]),
+      ),
+    );
+  }
+
+  // ── SMS Review Sheet ──
+  void _showSmsReviewSheet() {
+    if (_pendingSms.isEmpty) return;
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: _surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final items = List<SmsParseResult>.from(_smsService.pending);
+          return Padding(
+            padding: EdgeInsets.only(left: 24, right: 24, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _sheetHandle(),
+              const SizedBox(height: 16),
+              Row(children: [
+                const Icon(Icons.sms_rounded, color: _accent, size: 20),
+                const SizedBox(width: 10),
+                const Text('SMS Transactions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                Text('${items.length} found', style: const TextStyle(color: _dimmed, fontSize: 11)),
+              ]),
+              const SizedBox(height: 16),
+              if (items.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text('All caught up', style: TextStyle(color: _dimmed, fontSize: 13)),
+                )
+              else
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (_, i) {
+                      final r = items[i];
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            Container(
+                              width: 28, height: 28,
+                              decoration: BoxDecoration(
+                                color: (r.isCredit ? _green : _red).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              child: Icon(r.isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                                color: r.isCredit ? _green : _red, size: 14),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(r.isCredit ? 'Money Received' : 'Money Spent',
+                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                              if (r.bankName != null)
+                                Text('${r.bankName}${r.accountLast4 != null ? ' · A/c ${r.accountLast4}' : ''}',
+                                  style: const TextStyle(color: _dimmed, fontSize: 10)),
+                            ])),
+                            Text('${r.isCredit ? '+' : '-'}₹${r.amount.toStringAsFixed(2)}',
+                              style: TextStyle(color: r.isCredit ? _green : _red, fontSize: 15, fontWeight: FontWeight.w700)),
+                          ]),
+                          const SizedBox(height: 8),
+                          // Raw SMS preview
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(6)),
+                            child: Text(r.rawMessage, style: const TextStyle(color: _dimmed, fontSize: 9), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(children: [
+                            Expanded(child: SizedBox(height: 36, child: OutlinedButton(
+                              onPressed: () {
+                                _smsService.dismissResult(r);
+                                setSheetState(() => items.removeAt(i));
+                                setState(() => _pendingSms = List.from(_smsService.pending));
+                                if (_smsService.pending.isEmpty && ctx.mounted) Navigator.pop(ctx);
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _dimmed, side: const BorderSide(color: _border),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text('Dismiss', style: TextStyle(fontSize: 12)),
+                            ))),
+                            const SizedBox(width: 10),
+                            Expanded(child: SizedBox(height: 36, child: ElevatedButton(
+                              onPressed: () async {
+                                await _smsService.confirmTransaction(r);
+                                setSheetState(() => items.removeAt(i));
+                                setState(() => _pendingSms = List.from(_smsService.pending));
+                                await _loadData();
+                                if (_smsService.pending.isEmpty && ctx.mounted) Navigator.pop(ctx);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: r.isCredit ? _green : _accent,
+                                foregroundColor: Colors.white, elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text('Confirm', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            ))),
+                          ]),
+                        ]),
+                      );
+                    },
+                  ),
+                ),
+            ]),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── SMS Scan (scan inbox for past transactions) ──
+  Future<void> _scanSmsInbox() async {
+    if (!mounted) return;
+
+    // Request permission first
+    final granted = await _smsService.requestPermissions();
+    if (!granted) {
+      if (mounted) _snack('SMS permission denied');
+      return;
+    }
+
+    // Show scanning indicator
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Text('Scanning SMS inbox...'), backgroundColor: _accent,
+      behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
+
+    final results = await _smsService.scanInbox(days: 30);
+    if (!mounted) return;
+
+    // Always show debug info
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(_smsService.lastScanDebug),
+      backgroundColor: results.isEmpty ? Colors.orange.shade700 : Colors.green.shade600,
+      behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
+
+    if (results.isEmpty) return;
+    _showScanResultsSheet(results);
+  }
+
+  void _showScanResultsSheet(List<SmsParseResult> results) {
+    final scanResults = List<SmsParseResult>.from(results);
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: _surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(left: 24, right: 24, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _sheetHandle(),
+              const SizedBox(height: 16),
+              Row(children: [
+                const Icon(Icons.inbox_rounded, color: _accent, size: 20),
+                const SizedBox(width: 10),
+                const Text('SMS Scan Results', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                Text('${scanResults.length} found', style: const TextStyle(color: _dimmed, fontSize: 11)),
+              ]),
+              const SizedBox(height: 6),
+              const Text('Review detected transactions from your SMS inbox', style: TextStyle(color: _dimmed, fontSize: 11)),
+              const SizedBox(height: 16),
+              if (scanResults.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text('No transactions to review', style: TextStyle(color: _dimmed, fontSize: 13)),
+                )
+              else ...[
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: scanResults.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) {
+                      final r = scanResults[i];
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
+                        child: Row(children: [
+                          Container(
+                            width: 28, height: 28,
+                            decoration: BoxDecoration(
+                              color: (r.isCredit ? _green : _red).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            child: Icon(r.isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                              color: r.isCredit ? _green : _red, size: 14),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(r.label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                            Text(DateFormat('dd MMM · hh:mm a').format(r.dateTime), style: const TextStyle(color: _dimmed, fontSize: 9)),
+                          ])),
+                          Text('${r.isCredit ? '+' : '-'}₹${r.amount.toStringAsFixed(0)}',
+                            style: TextStyle(color: r.isCredit ? _green : _red, fontSize: 13, fontWeight: FontWeight.w700)),
+                        ]),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(children: [
+                  Expanded(child: SizedBox(height: 46, child: OutlinedButton(
+                    onPressed: () {
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _dimmed, side: const BorderSide(color: _border),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Dismiss All', style: TextStyle(fontSize: 13)),
+                  ))),
+                  const SizedBox(width: 12),
+                  Expanded(child: SizedBox(height: 46, child: ElevatedButton(
+                    onPressed: () async {
+                      int count = 0;
+                      for (final r in scanResults) {
+                        await _smsService.confirmTransaction(r);
+                        count++;
+                      }
+                      await _loadData();
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      _snack('$count transactions added');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _accent, foregroundColor: Colors.white, elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Confirm All', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  ))),
+                ]),
+              ],
+            ]),
+          );
+        },
+      ),
+    );
+  }
+
   // ── Build ──
   @override
   Widget build(BuildContext context) {
@@ -395,6 +709,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   // ── 1. Hero Balance Card ──
                   _buildHeroBalance(bankBalance, ccOutstanding),
                   const SizedBox(height: 16),
+
+                  // ── 1b. SMS Pending Banner ──
+                  _buildSmsBanner(),
+                  if (_pendingSms.isNotEmpty) const SizedBox(height: 16),
 
                   // ── 2. Insight Strip ──
                   if (insight != null)
@@ -660,6 +978,40 @@ class _HomeScreenState extends State<HomeScreen> {
         ListTile(leading: const Icon(Icons.calendar_month_rounded, color: Colors.white70),
           title: const Text('Calendar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
           onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen())); }),
+        const Divider(color: _border, height: 1, indent: 16, endIndent: 16),
+        const SizedBox(height: 4),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            const Icon(Icons.sms_rounded, color: Colors.white70, size: 22),
+            const SizedBox(width: 14),
+            const Expanded(child: Text('SMS Auto-Entry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 14))),
+            StatefulBuilder(builder: (ctx, setSwitchState) {
+              return Switch(
+                value: _smsService.isEnabled,
+                activeColor: _accent,
+                onChanged: (v) async {
+                  if (v) {
+                    final granted = await _smsService.requestPermissions();
+                    if (!granted) {
+                      if (mounted) _snack('SMS permission denied');
+                      return;
+                    }
+                  }
+                  await _smsService.setEnabled(v);
+                  setSwitchState(() {});
+                  setState(() {});
+                },
+              );
+            }),
+          ]),
+        ),
+        ListTile(
+          leading: const Icon(Icons.inbox_rounded, color: Colors.white70),
+          title: const Text('Scan SMS Inbox', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+          subtitle: const Text('Find past bank transactions', style: TextStyle(color: _dimmed, fontSize: 11)),
+          onTap: () { Navigator.pop(context); _scanSmsInbox(); },
+        ),
       ])),
     );
   }
