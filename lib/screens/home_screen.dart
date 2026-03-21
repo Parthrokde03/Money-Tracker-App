@@ -78,8 +78,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final txns = await _service.loadTransactions();
     if (!mounted) return;
     setState(() { _all = txns; _loading = false; });
-    // Also check for new SMS on every data reload (pull-to-refresh, screen return)
-    _checkForNewSms();
   }
 
   String _fmt(double v) =>
@@ -886,7 +884,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     required double todayExpense, required double todayIncome,
     required List<Transaction> monthTxns, required List<Transaction> todayTxns,
   }) {
-    return Row(children: [
+    return IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Expanded(child: _QuickStatCard(
         label: 'This Month', sublabel: DateFormat('MMM yyyy').format(now),
         expense: _fmtShort(monthExpense),
@@ -908,7 +906,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           await _loadData();
         },
       )),
-    ]);
+    ]));
   }
 
   // ── Recent Transactions (last 5 today) ──
