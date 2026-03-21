@@ -2,6 +2,7 @@
 class SmsParseResult {
   final double amount;
   final bool isCredit;
+  final bool isCreditCard;
   final String? bankName;
   final String? accountLast4;
   final String? upiId;
@@ -11,6 +12,7 @@ class SmsParseResult {
   SmsParseResult({
     required this.amount,
     required this.isCredit,
+    this.isCreditCard = false,
     this.bankName,
     this.accountLast4,
     this.upiId,
@@ -84,6 +86,7 @@ class SmsParser {
     'INDBNK', 'IABO', 'FIBNK', 'SLCBNK',
     'FEDER', 'BANDH', 'INDUS', 'BOBSMS', 'BARODA',
     'UNION', 'MAHBNK', 'SYNBNK', 'RBLBNK',
+    'SBM',
   ];
 
   /// Check if an SMS sender looks like a bank.
@@ -108,13 +111,18 @@ class SmsParser {
     RegExp(r'([\d,]+\.?\d*)\s*(?:Rs\.?|INR|₹)', caseSensitive: false),
   ];
 
+  static final _creditCardPattern = RegExp(
+    r'credit\s*card',
+    caseSensitive: false,
+  );
+
   static final _debitKeywords = RegExp(
-    r'debit|debited|withdrawn|sent|paid|purchase|spent|transferred|txn\s*of|payment\s*of',
+    r'debit|debited|withdrawn|sent|paid|purchase|spent|transferred|txn\s*of|payment\s*of|has\s+been\s+used',
     caseSensitive: false,
   );
 
   static final _creditKeywords = RegExp(
-    r'credit|credited|received|deposited|refund|cashback|added|reversed',
+    r'credited|received|deposited|refund|cashback|added|reversed',
     caseSensitive: false,
   );
 
@@ -146,15 +154,22 @@ class SmsParser {
     }
     if (amount == null || amount <= 0) return null;
 
+    // Detect credit card mention
+    final isCreditCard = _creditCardPattern.hasMatch(text);
+
+    // Strip "credit card" from text before checking debit/credit keywords
+    // so "Credit card" doesn't falsely trigger credit detection
+    final textForKeywords = text.replaceAll(_creditCardPattern, ' ');
+
     // Determine debit or credit
-    final hasDebit = _debitKeywords.hasMatch(text);
-    final hasCredit = _creditKeywords.hasMatch(text);
+    final hasDebit = _debitKeywords.hasMatch(textForKeywords);
+    final hasCredit = _creditKeywords.hasMatch(textForKeywords);
     if (!hasDebit && !hasCredit) return null;
 
     bool isCredit;
     if (hasDebit && hasCredit) {
-      final debitPos = _debitKeywords.firstMatch(text)!.start;
-      final creditPos = _creditKeywords.firstMatch(text)!.start;
+      final debitPos = _debitKeywords.firstMatch(textForKeywords)!.start;
+      final creditPos = _creditKeywords.firstMatch(textForKeywords)!.start;
       isCredit = creditPos < debitPos;
     } else {
       isCredit = hasCredit;
@@ -181,6 +196,7 @@ class SmsParser {
     return SmsParseResult(
       amount: amount,
       isCredit: isCredit,
+      isCreditCard: isCreditCard,
       bankName: bankName,
       accountLast4: accountLast4,
       upiId: upiId,
@@ -210,6 +226,7 @@ class SmsParser {
     if (s.contains('FI')) return 'Fi';
     if (s.contains('JIO')) return 'Jio';
     if (s.contains('AU')) return 'AU Bank';
+    if (s.contains('SBM')) return 'SBM';
     return null;
   }
 

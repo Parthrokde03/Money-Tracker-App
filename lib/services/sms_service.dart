@@ -146,12 +146,32 @@ class SmsService {
   }
 
   Future<Transaction> confirmTransaction(SmsParseResult result) async {
+    final PaidVia? paidVia;
+    if (result.isCredit) {
+      // Credit to credit card = reducing CC outstanding (bill payment)
+      // Credit to bank = income
+      paidVia = result.isCreditCard ? PaidVia.creditCard : null;
+    } else {
+      // Debit from credit card or bank
+      paidVia = result.isCreditCard ? PaidVia.creditCard : PaidVia.bank;
+    }
+
+    final TransactionType type;
+    if (result.isCredit && result.isCreditCard) {
+      // Money returned/refunded to credit card reduces CC outstanding
+      type = TransactionType.billPayment;
+    } else if (result.isCredit) {
+      type = TransactionType.income;
+    } else {
+      type = TransactionType.expense;
+    }
+
     final txn = Transaction(
       label: result.label,
       amount: result.amount,
       dateTime: result.dateTime,
-      type: result.isCredit ? TransactionType.income : TransactionType.expense,
-      paidVia: result.isCredit ? null : PaidVia.bank,
+      type: type,
+      paidVia: paidVia,
       category: result.isCredit ? null : ExpenseCategory.other,
     );
     final saved = await _txnService.saveTransaction(txn);

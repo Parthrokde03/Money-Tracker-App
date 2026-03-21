@@ -473,7 +473,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                             const SizedBox(width: 10),
                             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(r.isCredit ? 'Money Received' : 'Money Spent',
+                              Text(r.isCreditCard
+                                  ? (r.isCredit ? 'CC Refund / Return' : 'Credit Card Spend')
+                                  : (r.isCredit ? 'Money Received' : 'Money Spent'),
                                 style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                               if (r.bankName != null)
                                 Text('${r.bankName}${r.accountLast4 != null ? ' · A/c ${r.accountLast4}' : ''}',
