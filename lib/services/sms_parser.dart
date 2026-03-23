@@ -117,7 +117,7 @@ class SmsParser {
   );
 
   static final _debitKeywords = RegExp(
-    r'debit|debited|withdrawn|sent|paid|purchase|spent|transferred|txn\s*of|payment\s*of|has\s+been\s+used',
+    r'debit|debited|withdrawn|sent|paid|purchase|spent|transferred|txn\s*of|payment\s*of|has\s+been\s+used|you\s+have\s+paid',
     caseSensitive: false,
   );
 
@@ -154,8 +154,27 @@ class SmsParser {
     }
     if (amount == null || amount <= 0) return null;
 
-    // Detect credit card mention
-    final isCreditCard = _creditCardPattern.hasMatch(text);
+    // Detect credit card mention — must be near the amount or transaction keywords
+    // (within 150 chars) to avoid false positives from email footers/ads
+    bool isCreditCard = false;
+    final ccMatches = _creditCardPattern.allMatches(text);
+    if (ccMatches.isNotEmpty) {
+      // Find position of the amount match
+      int? amountPos;
+      for (final pattern in _amountPatterns) {
+        final m = pattern.firstMatch(text);
+        if (m != null) { amountPos = m.start; break; }
+      }
+      // Check if any "credit card" mention is within 150 chars of the amount
+      // or within the first 300 chars of the message (where transaction info usually is)
+      for (final ccMatch in ccMatches) {
+        if (ccMatch.start < 300 ||
+            (amountPos != null && (ccMatch.start - amountPos).abs() < 150)) {
+          isCreditCard = true;
+          break;
+        }
+      }
+    }
 
     // Strip "credit card" from text before checking debit/credit keywords
     // so "Credit card" doesn't falsely trigger credit detection

@@ -6,6 +6,7 @@ import '../services/transaction_service.dart';
 import '../services/auth_service.dart';
 import '../services/sms_service.dart';
 import '../services/sms_parser.dart';
+import '../services/gmail_service.dart';
 import 'calendar_screen.dart';
 import 'month_detail_screen.dart';
 import 'today_detail_screen.dart';
@@ -34,9 +35,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _service = TransactionService();
   final _auth = AuthService();
   final _smsService = SmsService();
+  final _gmailService = GmailService();
 
   List<Transaction> _all = [];
   List<SmsParseResult> _pendingSms = [];
+  List<SmsParseResult> _pendingGmail = [];
   bool _loading = true;
 
   @override
@@ -45,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _auth.addListener(_onAuthChange);
     _initSms();
+    _initGmail();
     _loadData();
   }
 
@@ -54,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkForNewSms();
+      _checkForNewGmail();
     }
   }
 
@@ -72,6 +77,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     };
     // Check for any SMS that arrived while app was closed
     _checkForNewSms();
+  }
+
+  Future<void> _initGmail() async {
+    await _gmailService.init();
+    _gmailService.onNewTransactions = (results) {
+      if (mounted) setState(() => _pendingGmail = List.from(_gmailService.pending));
+    };
+    _checkForNewGmail();
+  }
+
+  Future<void> _checkForNewGmail() async {
+    if (!_gmailService.isEnabled || !_gmailService.isSignedIn) return;
+    final results = await _gmailService.checkNewEmails();
+    if (results.isNotEmpty && mounted) {
+      setState(() => _pendingGmail = List.from(_gmailService.pending));
+    }
   }
 
   Future<void> _loadData() async {
@@ -415,6 +436,338 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ])),
           const Icon(Icons.chevron_right_rounded, color: _green, size: 20),
         ]),
+      ),
+    );
+  }
+
+  // ── Gmail Pending Banner ──
+  Widget _buildGmailBanner() {
+    if (_pendingGmail.isEmpty) return const SizedBox.shrink();
+    return GestureDetector(
+      onTap: _showGmailReviewSheet,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1B2A3A),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _accent.withOpacity(0.2)),
+        ),
+        child: Row(children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(color: _accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+            child: const Icon(Icons.email_rounded, color: _accent, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('${_pendingGmail.length} Gmail transaction${_pendingGmail.length > 1 ? 's' : ''} detected',
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 2),
+            const Text('Tap to review and confirm', style: TextStyle(color: _dimmed, fontSize: 10)),
+          ])),
+          const Icon(Icons.chevron_right_rounded, color: _accent, size: 20),
+        ]),
+      ),
+    );
+  }
+
+  // ── Gmail Review Sheet ──
+  void _showGmailReviewSheet() {
+    if (_pendingGmail.isEmpty) return;
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: _surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final items = List<SmsParseResult>.from(_gmailService.pending);
+          return Padding(
+            padding: EdgeInsets.only(left: 24, right: 24, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _sheetHandle(),
+              const SizedBox(height: 16),
+              Row(children: [
+                const Icon(Icons.email_rounded, color: _accent, size: 20),
+                const SizedBox(width: 10),
+                const Text('Gmail Transactions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                Text('${items.length} found', style: const TextStyle(color: _dimmed, fontSize: 11)),
+              ]),
+              const SizedBox(height: 16),
+              if (items.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text('All caught up', style: TextStyle(color: _dimmed, fontSize: 13)),
+                )
+              else
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (_, i) {
+                      final r = items[i];
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            Container(
+                              width: 28, height: 28,
+                              decoration: BoxDecoration(
+                                color: (r.isCredit ? _green : _red).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              child: Icon(r.isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                                color: r.isCredit ? _green : _red, size: 14),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(r.isCreditCard
+                                  ? (r.isCredit ? 'CC Refund / Return' : 'Credit Card Spend')
+                                  : (r.isCredit ? 'Money Received' : 'Money Spent'),
+                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                              if (r.bankName != null)
+                                Text('${r.bankName}${r.accountLast4 != null ? ' · A/c ${r.accountLast4}' : ''}',
+                                  style: const TextStyle(color: _dimmed, fontSize: 10)),
+                            ])),
+                            Text('${r.isCredit ? '+' : '-'}₹${r.amount.toStringAsFixed(2)}',
+                              style: TextStyle(color: r.isCredit ? _green : _red, fontSize: 15, fontWeight: FontWeight.w700)),
+                          ]),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(6)),
+                            child: Text(r.rawMessage, style: const TextStyle(color: _dimmed, fontSize: 9), maxLines: 3, overflow: TextOverflow.ellipsis),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(children: [
+                            Expanded(child: SizedBox(height: 36, child: OutlinedButton(
+                              onPressed: () {
+                                _gmailService.dismissResult(r);
+                                setSheetState(() => items.removeAt(i));
+                                setState(() => _pendingGmail = List.from(_gmailService.pending));
+                                if (_gmailService.pending.isEmpty && ctx.mounted) Navigator.pop(ctx);
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _dimmed, side: const BorderSide(color: _border),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text('Dismiss', style: TextStyle(fontSize: 12)),
+                            ))),
+                            const SizedBox(width: 10),
+                            Expanded(child: SizedBox(height: 36, child: ElevatedButton(
+                              onPressed: () async {
+                                await _gmailService.confirmTransaction(r);
+                                setSheetState(() => items.removeAt(i));
+                                setState(() => _pendingGmail = List.from(_gmailService.pending));
+                                await _loadData();
+                                if (_gmailService.pending.isEmpty && ctx.mounted) Navigator.pop(ctx);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: r.isCredit ? _green : _accent,
+                                foregroundColor: Colors.white, elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text('Confirm', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            ))),
+                          ]),
+                        ]),
+                      );
+                    },
+                  ),
+                ),
+            ]),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Gmail Scan ──
+  Future<void> _scanGmailInbox() async {
+    if (!_gmailService.isSignedIn) {
+      final ok = await _gmailService.signIn();
+      if (!ok) {
+        if (mounted) _snack('Google sign-in failed');
+        return;
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Scanning Gmail inbox...'), backgroundColor: _accent,
+        behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    }
+
+    final results = await _gmailService.scanInbox(days: 30);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(_gmailService.lastScanDebug),
+      backgroundColor: results.isEmpty ? Colors.orange.shade700 : Colors.green.shade600,
+      behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
+
+    if (results.isNotEmpty) {
+      setState(() => _pendingGmail = List.from(_gmailService.pending));
+      _showGmailScanResultsSheet(results);
+    }
+  }
+
+  void _showGmailScanResultsSheet(List<SmsParseResult> results) {
+    final scanResults = List<SmsParseResult>.from(results);
+    final selected = List<bool>.filled(scanResults.length, true);
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: _surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final selectedCount = selected.where((s) => s).length;
+          final allSelected = selectedCount == scanResults.length;
+          return Padding(
+            padding: EdgeInsets.only(left: 24, right: 24, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _sheetHandle(),
+              const SizedBox(height: 16),
+              Row(children: [
+                const Icon(Icons.email_rounded, color: _accent, size: 20),
+                const SizedBox(width: 10),
+                const Text('Gmail Scan Results', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                Text('${scanResults.length} found', style: const TextStyle(color: _dimmed, fontSize: 11)),
+              ]),
+              const SizedBox(height: 6),
+              const Text('Review detected transactions from your Gmail', style: TextStyle(color: _dimmed, fontSize: 11)),
+              const SizedBox(height: 12),
+              if (scanResults.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text('No transactions to review', style: TextStyle(color: _dimmed, fontSize: 13)),
+                )
+              else ...[
+                Row(children: [
+                  GestureDetector(
+                    onTap: () => setSheetState(() {
+                      final newVal = !allSelected;
+                      for (int i = 0; i < selected.length; i++) selected[i] = newVal;
+                    }),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      SizedBox(width: 20, height: 20, child: Checkbox(
+                        value: allSelected,
+                        tristate: selectedCount > 0 && !allSelected,
+                        onChanged: (_) => setSheetState(() {
+                          final newVal = !allSelected;
+                          for (int i = 0; i < selected.length; i++) selected[i] = newVal;
+                        }),
+                        activeColor: _accent, checkColor: Colors.white,
+                        side: const BorderSide(color: _dimmed, width: 1.5),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      )),
+                      const SizedBox(width: 8),
+                      Text(allSelected ? 'Deselect All' : 'Select All',
+                        style: const TextStyle(color: _dimmed, fontSize: 11, fontWeight: FontWeight.w500)),
+                    ]),
+                  ),
+                  const Spacer(),
+                  Text('$selectedCount selected', style: const TextStyle(color: _dimmed, fontSize: 11)),
+                ]),
+                const SizedBox(height: 10),
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: scanResults.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) {
+                      final r = scanResults[i];
+                      final isSelected = selected[i];
+                      return GestureDetector(
+                        onTap: () => setSheetState(() => selected[i] = !selected[i]),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isSelected ? _bg : _bg.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: isSelected ? _accent.withOpacity(0.5) : _border),
+                          ),
+                          child: Row(children: [
+                            SizedBox(width: 20, height: 20, child: Checkbox(
+                              value: isSelected,
+                              onChanged: (_) => setSheetState(() => selected[i] = !selected[i]),
+                              activeColor: _accent, checkColor: Colors.white,
+                              side: const BorderSide(color: _dimmed, width: 1.5),
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                            )),
+                            const SizedBox(width: 10),
+                            Container(
+                              width: 28, height: 28,
+                              decoration: BoxDecoration(
+                                color: (r.isCredit ? _green : _red).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(7),
+                              ),
+                              child: Icon(r.isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                                color: r.isCredit ? _green : _red, size: 14),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(r.label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                              Text(DateFormat('dd MMM · hh:mm a').format(r.dateTime), style: const TextStyle(color: _dimmed, fontSize: 9)),
+                            ])),
+                            Text('${r.isCredit ? '+' : '-'}₹${r.amount.toStringAsFixed(0)}',
+                              style: TextStyle(color: r.isCredit ? _green : _red, fontSize: 13, fontWeight: FontWeight.w700)),
+                          ]),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(children: [
+                  Expanded(child: SizedBox(height: 46, child: OutlinedButton(
+                    onPressed: () { if (ctx.mounted) Navigator.pop(ctx); },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _dimmed, side: const BorderSide(color: _border),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Dismiss', style: TextStyle(fontSize: 13)),
+                  ))),
+                  const SizedBox(width: 12),
+                  Expanded(child: SizedBox(height: 46, child: ElevatedButton(
+                    onPressed: selectedCount == 0 ? null : () async {
+                      int count = 0;
+                      for (int i = 0; i < scanResults.length; i++) {
+                        if (selected[i]) {
+                          await _gmailService.confirmTransaction(scanResults[i]);
+                          count++;
+                        }
+                      }
+                      await _loadData();
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      _snack('$count transaction${count == 1 ? '' : 's'} added');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _green, foregroundColor: Colors.white, elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      disabledBackgroundColor: _green.withOpacity(0.3),
+                    ),
+                    child: Text('Confirm ($selectedCount)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  ))),
+                ]),
+              ],
+            ]),
+          );
+        },
       ),
     );
   }
@@ -782,6 +1135,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   _buildSmsBanner(),
                   if (_pendingSms.isNotEmpty) const SizedBox(height: 16),
 
+                  // ── 1c. Gmail Pending Banner ──
+                  _buildGmailBanner(),
+                  if (_pendingGmail.isNotEmpty) const SizedBox(height: 16),
+
                   // ── 2. Insight Strip ──
                   if (insight != null)
                     Container(
@@ -1079,6 +1436,45 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           title: const Text('Scan SMS Inbox', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
           subtitle: const Text('Find past bank transactions', style: TextStyle(color: _dimmed, fontSize: 11)),
           onTap: () { Navigator.pop(context); _scanSmsInbox(); },
+        ),
+        const Divider(color: _border, height: 1, indent: 16, endIndent: 16),
+        const SizedBox(height: 4),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            const Icon(Icons.email_rounded, color: Colors.white70, size: 22),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Gmail Auto-Entry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 14)),
+              if (_gmailService.userEmail != null)
+                Text(_gmailService.userEmail!, style: const TextStyle(color: _dimmed, fontSize: 10)),
+            ])),
+            StatefulBuilder(builder: (ctx, setSwitchState) {
+              return Switch(
+                value: _gmailService.isEnabled,
+                activeColor: _accent,
+                onChanged: (v) async {
+                  if (v && !_gmailService.isSignedIn) {
+                    final ok = await _gmailService.signIn();
+                    if (!ok) {
+                      if (mounted) _snack('Google sign-in failed');
+                      return;
+                    }
+                  }
+                  await _gmailService.setEnabled(v);
+                  if (v) _checkForNewGmail();
+                  setSwitchState(() {});
+                  setState(() {});
+                },
+              );
+            }),
+          ]),
+        ),
+        ListTile(
+          leading: const Icon(Icons.mark_email_read_rounded, color: Colors.white70),
+          title: const Text('Scan Gmail Inbox', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+          subtitle: const Text('Find bank emails from last 30 days', style: TextStyle(color: _dimmed, fontSize: 11)),
+          onTap: () { Navigator.pop(context); _scanGmailInbox(); },
         ),
       ])),
     );
