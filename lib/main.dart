@@ -1,34 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/home_screen.dart';
+import 'services/theme_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ),
-  );
+  await ThemeService().init();
+  _applySystemUI(ThemeService().isDark);
   runApp(const MoneyTrackerApp());
 }
 
-class MoneyTrackerApp extends StatelessWidget {
+void _applySystemUI(bool isDark) {
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+  ));
+}
+
+class MoneyTrackerApp extends StatefulWidget {
   const MoneyTrackerApp({super.key});
+  @override
+  State<MoneyTrackerApp> createState() => _MoneyTrackerAppState();
+}
+
+class _MoneyTrackerAppState extends State<MoneyTrackerApp> {
+  final _theme = ThemeService();
+
+  @override
+  void initState() {
+    super.initState();
+    _theme.addListener(_onThemeChange);
+  }
+
+  void _onThemeChange() {
+    _applySystemUI(_theme.isDark);
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _theme.removeListener(_onThemeChange);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = _theme.isDark;
     return MaterialApp(
       title: 'Money Tracker',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0F0F1A),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1A1A2E),
-          foregroundColor: Colors.white,
+        brightness: isDark ? Brightness.dark : Brightness.light,
+        scaffoldBackgroundColor: AppColors.bg,
+        appBarTheme: AppBarTheme(
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.textPrimary,
         ),
-        colorSchemeSeed: const Color(0xFF6C63FF),
+        colorSchemeSeed: AppColors.accent,
         useMaterial3: true,
       ),
       home: const HomeScreen(),

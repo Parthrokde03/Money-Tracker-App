@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction.dart';
 import '../services/transaction_service.dart';
-import '../services/auth_service.dart';
+import '../services/theme_service.dart';
 
-const _bg = Color(0xFF0F0F1A);
-const _surface = Color(0xFF1A1A2E);
+Color get _bg => AppColors.bg;
+Color get _surface => AppColors.surface;
 const _accent = Color(0xFF6C63FF);
 const _green = Color(0xFF2ECC71);
 const _red = Color(0xFFFF6B6B);
 const _orange = Color(0xFFE67E22);
-const _border = Color(0x0FFFFFFF);
-const _muted = Color(0x99FFFFFF);
-const _dimmed = Color(0x59FFFFFF);
+Color get _border => AppColors.border;
+Color get _muted => AppColors.muted;
+Color get _dimmed => AppColors.dimmed;
 
 class TodayDetailScreen extends StatefulWidget {
   final List<Transaction> transactions;
@@ -23,7 +23,6 @@ class TodayDetailScreen extends StatefulWidget {
 
 class _TodayDetailScreenState extends State<TodayDetailScreen> {
   final _service = TransactionService();
-  final _auth = AuthService();
   late List<Transaction> _txns;
   bool _changed = false;
 
@@ -55,7 +54,6 @@ class _TodayDetailScreenState extends State<TodayDetailScreen> {
   }
 
   void _showEditDialog(Transaction txn) {
-    if (!_auth.isDeveloper && !txn.isExpense) return;
     final labelCtrl = TextEditingController(text: txn.label);
     final amountCtrl = TextEditingController(text: txn.amount.toString());
     final formKey = GlobalKey<FormState>();
@@ -71,34 +69,32 @@ class _TodayDetailScreenState extends State<TodayDetailScreen> {
             Container(width: 40, height: 4, decoration: BoxDecoration(color: _dimmed, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             Text('Edit ${txn.isExpense ? "Expense" : txn.isIncome ? "Income" : "Bill Payment"}',
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 18),
-            TextFormField(controller: labelCtrl, style: const TextStyle(color: Colors.white),
+            TextFormField(controller: labelCtrl, style: TextStyle(color: AppColors.textPrimary),
               decoration: _inputDecoration('Label', Icons.label_outline_rounded),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter label' : null),
             const SizedBox(height: 14),
             TextFormField(controller: amountCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: Colors.white), decoration: _inputDecoration('Amount', Icons.currency_rupee_rounded),
+              style: TextStyle(color: AppColors.textPrimary), decoration: _inputDecoration('Amount', Icons.currency_rupee_rounded),
               validator: (v) { if (v == null || v.trim().isEmpty) return 'Enter amount'; if (double.tryParse(v.trim()) == null) return 'Invalid number'; if (double.parse(v.trim()) <= 0) return 'Must be > 0'; return null; }),
-            if (_auth.isDeveloper) ...[
-              const SizedBox(height: 14),
-              GestureDetector(
-                onTap: () async {
-                  final picked = await showDatePicker(context: ctx, initialDate: editDate, firstDate: DateTime(2020), lastDate: DateTime.now(),
-                    builder: (context, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: _accent, surface: _surface)), child: child!));
-                  if (picked != null) setSheetState(() => editDate = DateTime(picked.year, picked.month, picked.day, txn.dateTime.hour, txn.dateTime.minute, txn.dateTime.second));
-                },
-                child: Container(
-                  width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
-                  child: Row(children: [
-                    const Icon(Icons.calendar_today_rounded, color: _dimmed, size: 18),
-                    const SizedBox(width: 12),
-                    Text(DateFormat('dd MMM yyyy').format(editDate), style: const TextStyle(color: Colors.white, fontSize: 14)),
-                  ]),
-                ),
+            const SizedBox(height: 14),
+            GestureDetector(
+              onTap: () async {
+                final picked = await showDatePicker(context: ctx, initialDate: editDate, firstDate: DateTime(2020), lastDate: DateTime.now(),
+                  builder: (context, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: ColorScheme.dark(primary: _accent, surface: _surface)), child: child!));
+                if (picked != null) setSheetState(() => editDate = DateTime(picked.year, picked.month, picked.day, txn.dateTime.hour, txn.dateTime.minute, txn.dateTime.second));
+              },
+              child: Container(
+                width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
+                child: Row(children: [
+                  Icon(Icons.calendar_today_rounded, color: _dimmed, size: 18),
+                  const SizedBox(width: 12),
+                  Text(DateFormat('dd MMM yyyy').format(editDate), style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+                ]),
               ),
-            ],
+            ),
             const SizedBox(height: 20),
             Row(children: [
               Expanded(child: OutlinedButton(
@@ -136,11 +132,11 @@ class _TodayDetailScreenState extends State<TodayDetailScreen> {
   }
 
   InputDecoration _inputDecoration(String hint, IconData icon) {
-    return InputDecoration(hintText: hint, hintStyle: const TextStyle(color: _dimmed),
+    return InputDecoration(hintText: hint, hintStyle: TextStyle(color: _dimmed),
       prefixIcon: Icon(icon, color: _muted, size: 20), filled: true, fillColor: _bg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _border)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _border)),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _accent, width: 1.5)),
       errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)));
   }
@@ -165,13 +161,13 @@ class _TodayDetailScreenState extends State<TodayDetailScreen> {
         appBar: AppBar(
           title: Text(today, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           centerTitle: true, backgroundColor: _surface, elevation: 0, surfaceTintColor: Colors.transparent,
-          iconTheme: const IconThemeData(color: Colors.white),
+          iconTheme: IconThemeData(color: AppColors.textPrimary),
         ),
         body: sorted.isEmpty
             ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.receipt_long_rounded, size: 56, color: Colors.white.withOpacity(0.1)),
+                Icon(Icons.receipt_long_rounded, size: 56, color: AppColors.dimmed.withOpacity(0.3)),
                 const SizedBox(height: 12),
-                const Text('No transactions today', style: TextStyle(color: _dimmed, fontSize: 15)),
+                Text('No transactions today', style: TextStyle(color: _dimmed, fontSize: 15)),
               ]))
             : Column(children: [
                 Expanded(child: ListView(padding: const EdgeInsets.all(20), children: [
@@ -200,22 +196,22 @@ class _TodayDetailScreenState extends State<TodayDetailScreen> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  decoration: const BoxDecoration(color: _surface, border: Border(top: BorderSide(color: Color(0xFF2A2A3E)))),
+                  decoration: BoxDecoration(color: _surface, border: Border(top: BorderSide(color: AppColors.divider))),
                   child: Row(children: [
                     if (incomeTotal > 0) ...[
                       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('Income', style: TextStyle(color: _dimmed, fontSize: 11)),
+                        Text('Income', style: TextStyle(color: _dimmed, fontSize: 11)),
                         Text('+${_fmt(incomeTotal)}', style: const TextStyle(color: _green, fontSize: 14, fontWeight: FontWeight.w700)),
                       ]),
                       const SizedBox(width: 24),
                     ],
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Expenses', style: TextStyle(color: _dimmed, fontSize: 11)),
+                      Text('Expenses', style: TextStyle(color: _dimmed, fontSize: 11)),
                       Text('-${_fmt(expenseTotal)}', style: const TextStyle(color: _red, fontSize: 14, fontWeight: FontWeight.w700)),
                     ]),
                     const Spacer(),
                     Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                      const Text('Net', style: TextStyle(color: _dimmed, fontSize: 11)),
+                      Text('Net', style: TextStyle(color: _dimmed, fontSize: 11)),
                       Text(_fmt(incomeTotal - expenseTotal),
                         style: TextStyle(color: incomeTotal >= expenseTotal ? _green : _red, fontSize: 16, fontWeight: FontWeight.w800)),
                     ]),
@@ -237,27 +233,49 @@ class _TodayDetailScreenState extends State<TodayDetailScreen> {
   }
 
   Widget _txnTile(Transaction t) {
-    return GestureDetector(
-      onTap: () => _showEditDialog(t),
-      child: Container(
+    return Dismissible(
+      key: ValueKey(t.id ?? t.hashCode),
+      direction: DismissDirection.endToStart,
+      background: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
-        child: Row(children: [
-          Container(
-            width: 34, height: 34,
-            decoration: BoxDecoration(color: _color(t).withOpacity(0.1), borderRadius: BorderRadius.circular(9)),
-            child: Icon(_icon(t), color: _color(t), size: 16),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(t.label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
-            const SizedBox(height: 2),
-            Text('${_subtitle(t)} · ${DateFormat('hh:mm a').format(t.dateTime)}',
-              style: const TextStyle(color: _dimmed, fontSize: 11)),
-          ])),
-          Text('${_prefix(t)}${_fmt(t.amount)}', style: TextStyle(color: _color(t), fontSize: 14, fontWeight: FontWeight.w700)),
-        ]),
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+        alignment: Alignment.centerRight,
+        child: const Icon(Icons.delete_rounded, color: Colors.redAccent, size: 22),
+      ),
+      confirmDismiss: (_) async {
+        return await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+          backgroundColor: _surface, title: Text('Delete?', style: TextStyle(color: AppColors.textPrimary, fontSize: 16)),
+          content: Text('Remove "${t.label}" (${_fmt(t.amount)})?', style: TextStyle(color: _dimmed, fontSize: 13)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel', style: TextStyle(color: _dimmed))),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.redAccent))),
+          ],
+        )) ?? false;
+      },
+      onDismissed: (_) => _deleteTransaction(t),
+      child: GestureDetector(
+        onTap: () => _showEditDialog(t),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
+          child: Row(children: [
+            Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(color: _color(t).withOpacity(0.1), borderRadius: BorderRadius.circular(9)),
+              child: Icon(_icon(t), color: _color(t), size: 16),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(t.label, style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 2),
+              Text('${_subtitle(t)} · ${DateFormat('hh:mm a').format(t.dateTime)}',
+                style: TextStyle(color: _dimmed, fontSize: 11)),
+            ])),
+            Text('${_prefix(t)}${_fmt(t.amount)}', style: TextStyle(color: _color(t), fontSize: 14, fontWeight: FontWeight.w700)),
+          ]),
+        ),
       ),
     );
   }

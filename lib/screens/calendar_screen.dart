@@ -4,14 +4,16 @@ import 'package:table_calendar/table_calendar.dart';
 import '../models/transaction.dart';
 import '../services/transaction_service.dart';
 
-const _bg = Color(0xFF0F0F1A);
-const _surface = Color(0xFF1A1A2E);
+import '../services/theme_service.dart';
+
+Color get _bg => AppColors.bg;
+Color get _surface => AppColors.surface;
 const _accent = Color(0xFF6C63FF);
 const _green = Color(0xFF2ECC71);
 const _red = Color(0xFFFF6B6B);
 const _orange = Color(0xFFE67E22);
-const _border = Color(0x0FFFFFFF);
-const _dimmed = Color(0x59FFFFFF);
+Color get _border => AppColors.border;
+Color get _dimmed => AppColors.dimmed;
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -73,7 +75,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       appBar: AppBar(
         title: const Text('Calendar', style: TextStyle(fontWeight: FontWeight.w700)),
         centerTitle: true, backgroundColor: _surface, elevation: 0, surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: AppColors.textPrimary),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _accent))
@@ -84,7 +86,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: Row(children: [
                     Text(DateFormat('dd MMM yyyy').format(_selectedDay!),
-                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                      style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
                     const Spacer(),
                     if (selectedIncomeTotal > 0)
                       Padding(padding: const EdgeInsets.only(right: 10),
@@ -93,10 +95,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       Text('-${_fmt(selectedExpenseTotal)}', style: const TextStyle(color: _red, fontSize: 14, fontWeight: FontWeight.w700)),
                   ]),
                 ),
-                const Divider(color: _border, height: 1, indent: 20, endIndent: 20),
+                Divider(color: _border, height: 1, indent: 20, endIndent: 20),
                 Expanded(
                   child: selectedTxns.isEmpty
-                      ? const Center(child: Text('No transactions on this day', style: TextStyle(color: _dimmed, fontSize: 13)))
+                      ? Center(child: Text('No transactions on this day', style: TextStyle(color: _dimmed, fontSize: 13)))
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           itemCount: selectedTxns.length,
@@ -114,10 +116,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(t.label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                                  Text(t.label, style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
                                   const SizedBox(height: 2),
                                   Text('${_txnTag(t)} · ${DateFormat('hh:mm a').format(t.dateTime)}',
-                                    style: const TextStyle(color: _dimmed, fontSize: 11)),
+                                    style: TextStyle(color: _dimmed, fontSize: 11)),
                                 ])),
                                 Text('${_txnPrefix(t)}${_fmt(t.amount)}',
                                   style: TextStyle(color: _txnColor(t), fontSize: 14, fontWeight: FontWeight.w700)),
@@ -127,7 +129,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                 ),
               ] else
-                const Expanded(child: Center(child: Text('Tap a date to see transactions', style: TextStyle(color: _dimmed, fontSize: 13)))),
+                Expanded(child: Center(child: Text('Tap a date to see transactions', style: TextStyle(color: _dimmed, fontSize: 13)))),
             ]),
     );
   }
@@ -143,24 +145,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
         onPageChanged: (focused) => _focusedDay = focused,
         calendarFormat: CalendarFormat.month,
         availableCalendarFormats: const {CalendarFormat.month: 'Month'},
-        headerStyle: const HeaderStyle(
+        headerStyle: HeaderStyle(
           formatButtonVisible: false, titleCentered: true,
-          titleTextStyle: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-          leftChevronIcon: Icon(Icons.chevron_left, color: Colors.white54, size: 20),
-          rightChevronIcon: Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+          titleTextStyle: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+          leftChevronIcon: Icon(Icons.chevron_left, color: AppColors.dimmed, size: 20),
+          rightChevronIcon: Icon(Icons.chevron_right, color: AppColors.dimmed, size: 20),
         ),
-        daysOfWeekStyle: const DaysOfWeekStyle(
-          weekdayStyle: TextStyle(color: Colors.white38, fontSize: 12),
-          weekendStyle: TextStyle(color: Colors.white24, fontSize: 12),
+        daysOfWeekStyle: DaysOfWeekStyle(
+          weekdayStyle: TextStyle(color: AppColors.dimmed, fontSize: 12),
+          weekendStyle: TextStyle(color: AppColors.dimmed, fontSize: 12),
         ),
         calendarStyle: CalendarStyle(
           outsideDaysVisible: false,
-          defaultTextStyle: const TextStyle(color: Colors.white),
-          weekendTextStyle: const TextStyle(color: Colors.white70),
+          defaultTextStyle: TextStyle(color: AppColors.textPrimary),
+          weekendTextStyle: TextStyle(color: AppColors.textSecondary),
           todayDecoration: BoxDecoration(color: _accent.withOpacity(0.25), shape: BoxShape.circle),
-          todayTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          todayTextStyle: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
           selectedDecoration: const BoxDecoration(color: _accent, shape: BoxShape.circle),
-          selectedTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          selectedTextStyle: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
           cellMargin: const EdgeInsets.all(6),
         ),
         calendarBuilders: CalendarBuilders(
@@ -183,11 +185,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text('${day.day}', style: TextStyle(color: Colors.white, fontSize: 13,
+        Text('${day.day}', style: TextStyle(color: AppColors.textPrimary, fontSize: 13,
           fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w400)),
         if (total != null)
           Text('₹${total.toStringAsFixed(0)}', style: TextStyle(
-            color: isSelected ? Colors.white70 : _red, fontSize: 8, fontWeight: FontWeight.w600),
+            color: isSelected ? AppColors.textSecondary : _red, fontSize: 8, fontWeight: FontWeight.w600),
             overflow: TextOverflow.ellipsis),
       ]),
     );

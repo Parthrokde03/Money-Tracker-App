@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction.dart';
 import '../services/transaction_service.dart';
-import '../services/auth_service.dart';
+import '../services/theme_service.dart';
 
-const _bg = Color(0xFF0F0F1A);
-const _surface = Color(0xFF1A1A2E);
+Color get _bg => AppColors.bg;
+Color get _surface => AppColors.surface;
 const _accent = Color(0xFF6C63FF);
 const _green = Color(0xFF2ECC71);
 const _red = Color(0xFFFF6B6B);
 const _orange = Color(0xFFE67E22);
-const _border = Color(0x0FFFFFFF);
-const _muted = Color(0x99FFFFFF);
-const _dimmed = Color(0x59FFFFFF);
+Color get _border => AppColors.border;
+Color get _muted => AppColors.muted;
+Color get _dimmed => AppColors.dimmed;
 
 class MonthDetailScreen extends StatefulWidget {
   final List<Transaction> transactions;
@@ -24,7 +24,6 @@ class MonthDetailScreen extends StatefulWidget {
 
 class _MonthDetailScreenState extends State<MonthDetailScreen> {
   final _service = TransactionService();
-  final _auth = AuthService();
   late List<Transaction> _txns;
   String? _expandedDay;
 
@@ -62,7 +61,6 @@ class _MonthDetailScreenState extends State<MonthDetailScreen> {
   }
 
   void _showEditSheet(Transaction txn) {
-    if (!_auth.isDeveloper) return;
     final labelCtrl = TextEditingController(text: txn.label);
     final amountCtrl = TextEditingController(text: txn.amount.toString());
     final formKey = GlobalKey<FormState>();
@@ -78,29 +76,29 @@ class _MonthDetailScreenState extends State<MonthDetailScreen> {
             Container(width: 40, height: 4, decoration: BoxDecoration(color: _dimmed, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
             Text('Edit ${txn.isExpense ? "Expense" : txn.isIncome ? "Income" : "Bill Payment"}',
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 18),
-            TextFormField(controller: labelCtrl, style: const TextStyle(color: Colors.white),
+            TextFormField(controller: labelCtrl, style: TextStyle(color: AppColors.textPrimary),
               decoration: _inputDecoration('Label', Icons.label_outline_rounded),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter label' : null),
             const SizedBox(height: 14),
             TextFormField(controller: amountCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: Colors.white), decoration: _inputDecoration('Amount', Icons.currency_rupee_rounded),
+              style: TextStyle(color: AppColors.textPrimary), decoration: _inputDecoration('Amount', Icons.currency_rupee_rounded),
               validator: (v) { if (v == null || v.trim().isEmpty) return 'Enter amount'; if (double.tryParse(v.trim()) == null) return 'Invalid number'; if (double.parse(v.trim()) <= 0) return 'Must be > 0'; return null; }),
             const SizedBox(height: 14),
             GestureDetector(
               onTap: () async {
                 final picked = await showDatePicker(context: ctx, initialDate: editDate, firstDate: DateTime(2020), lastDate: DateTime.now(),
-                  builder: (context, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: _accent, surface: _surface)), child: child!));
+                  builder: (context, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: ColorScheme.dark(primary: _accent, surface: _surface)), child: child!));
                 if (picked != null) setSheetState(() => editDate = DateTime(picked.year, picked.month, picked.day, txn.dateTime.hour, txn.dateTime.minute, txn.dateTime.second));
               },
               child: Container(
                 width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
                 child: Row(children: [
-                  const Icon(Icons.calendar_today_rounded, color: _dimmed, size: 18),
+                  Icon(Icons.calendar_today_rounded, color: _dimmed, size: 18),
                   const SizedBox(width: 12),
-                  Text(DateFormat('dd MMM yyyy').format(editDate), style: const TextStyle(color: Colors.white, fontSize: 14)),
+                  Text(DateFormat('dd MMM yyyy').format(editDate), style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
                 ]),
               ),
             ),
@@ -130,11 +128,11 @@ class _MonthDetailScreenState extends State<MonthDetailScreen> {
   }
 
   InputDecoration _inputDecoration(String hint, IconData icon) {
-    return InputDecoration(hintText: hint, hintStyle: const TextStyle(color: _dimmed),
+    return InputDecoration(hintText: hint, hintStyle: TextStyle(color: _dimmed),
       prefixIcon: Icon(icon, color: _muted, size: 20), filled: true, fillColor: _bg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _border)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _border)),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _accent, width: 1.5)),
       errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)));
   }
@@ -156,13 +154,13 @@ class _MonthDetailScreenState extends State<MonthDetailScreen> {
       appBar: AppBar(
         title: Text(widget.monthLabel, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
         centerTitle: true, backgroundColor: _surface, elevation: 0, surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: AppColors.textPrimary),
       ),
       body: sortedKeys.isEmpty
           ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.receipt_long_rounded, size: 56, color: Colors.white.withOpacity(0.1)),
+              Icon(Icons.receipt_long_rounded, size: 56, color: AppColors.dimmed.withOpacity(0.3)),
               const SizedBox(height: 12),
-              const Text('No transactions this month', style: TextStyle(color: _dimmed, fontSize: 15)),
+              Text('No transactions this month', style: TextStyle(color: _dimmed, fontSize: 15)),
             ]))
           : Column(children: [
               // Summary bar
@@ -211,15 +209,15 @@ class _MonthDetailScreenState extends State<MonthDetailScreen> {
                               width: 44, height: 44,
                               decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
                               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Text(DateFormat('dd').format(date), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-                                Text(DateFormat('MMM').format(date), style: const TextStyle(color: _dimmed, fontSize: 9)),
+                                Text(DateFormat('dd').format(date), style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                                Text(DateFormat('MMM').format(date), style: TextStyle(color: _dimmed, fontSize: 9)),
                               ]),
                             ),
                             const SizedBox(width: 12),
                             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(DateFormat('EEEE').format(date), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                              Text(DateFormat('EEEE').format(date), style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
                               const SizedBox(height: 2),
-                              Text('${dayTxns.length} transaction${dayTxns.length > 1 ? 's' : ''}', style: const TextStyle(color: _dimmed, fontSize: 11)),
+                              Text('${dayTxns.length} transaction${dayTxns.length > 1 ? 's' : ''}', style: TextStyle(color: _dimmed, fontSize: 11)),
                             ])),
                             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                               if (dayExpenseTotal > 0)
@@ -230,7 +228,7 @@ class _MonthDetailScreenState extends State<MonthDetailScreen> {
                             const SizedBox(width: 6),
                             AnimatedRotation(
                               turns: isExpanded ? 0.5 : 0, duration: const Duration(milliseconds: 200),
-                              child: const Icon(Icons.expand_more_rounded, color: _dimmed, size: 18),
+                              child: Icon(Icons.expand_more_rounded, color: _dimmed, size: 18),
                             ),
                           ]),
                         ),
@@ -242,8 +240,28 @@ class _MonthDetailScreenState extends State<MonthDetailScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
-                          child: Column(children: dayTxns.map((t) => GestureDetector(
-                            onTap: _auth.isDeveloper ? () => _showEditSheet(t) : null,
+                          child: Column(children: dayTxns.map((t) => Dismissible(
+                            key: ValueKey(t.id ?? t.hashCode),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              padding: const EdgeInsets.only(right: 16),
+                              decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                              alignment: Alignment.centerRight,
+                              child: const Icon(Icons.delete_rounded, color: Colors.redAccent, size: 18),
+                            ),
+                            confirmDismiss: (_) async {
+                              return await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+                                backgroundColor: _surface, title: Text('Delete?', style: TextStyle(color: AppColors.textPrimary, fontSize: 16)),
+                                content: Text('Remove "${t.label}" (${_fmt(t.amount)})?', style: TextStyle(color: _dimmed, fontSize: 13)),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel', style: TextStyle(color: _dimmed))),
+                                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.redAccent))),
+                                ],
+                              )) ?? false;
+                            },
+                            onDismissed: (_) async { if (t.id != null) { await _service.deleteTransaction(t.id!); await _reload(); } },
+                            child: GestureDetector(
+                            onTap: () => _showEditSheet(t),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 6),
                               child: Row(children: [
@@ -254,20 +272,19 @@ class _MonthDetailScreenState extends State<MonthDetailScreen> {
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(t.label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500)),
-                                  Text(_txnTag(t), style: const TextStyle(color: _dimmed, fontSize: 10)),
+                                  Text(t.label, style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                                  Text(_txnTag(t), style: TextStyle(color: _dimmed, fontSize: 10)),
                                 ])),
                                 Text('${_txnPrefix(t)}${_fmt(t.amount)}', style: TextStyle(color: _txnColor(t), fontSize: 13, fontWeight: FontWeight.w700)),
-                                if (_auth.isDeveloper)
-                                  const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.edit_rounded, color: _dimmed, size: 12)),
+                                Padding(padding: const EdgeInsets.only(left: 4), child: Icon(Icons.edit_rounded, color: _dimmed, size: 12)),
                               ]),
                             ),
-                          )).toList()),
+                          ))).toList()),
                         ),
                         crossFadeState: isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
                         duration: const Duration(milliseconds: 250),
                       ),
-                      if (!isExpanded) const Divider(color: _border, height: 1),
+                      if (!isExpanded) Divider(color: _border, height: 1),
                     ]);
                   },
                 ),
@@ -276,22 +293,22 @@ class _MonthDetailScreenState extends State<MonthDetailScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                decoration: const BoxDecoration(color: _surface, border: Border(top: BorderSide(color: Color(0xFF2A2A3E)))),
+                decoration: BoxDecoration(color: _surface, border: Border(top: BorderSide(color: AppColors.divider))),
                 child: Row(children: [
                   if (incomeTotal > 0) ...[
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Income', style: TextStyle(color: _dimmed, fontSize: 11)),
+                      Text('Income', style: TextStyle(color: _dimmed, fontSize: 11)),
                       Text('+${_fmt(incomeTotal)}', style: const TextStyle(color: _green, fontSize: 13, fontWeight: FontWeight.w700)),
                     ]),
                     const SizedBox(width: 20),
                   ],
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Expenses', style: TextStyle(color: _dimmed, fontSize: 11)),
+                    Text('Expenses', style: TextStyle(color: _dimmed, fontSize: 11)),
                     Text(_fmt(expenseTotal), style: const TextStyle(color: _red, fontSize: 13, fontWeight: FontWeight.w700)),
                   ]),
                   const Spacer(),
                   Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    const Text('Net', style: TextStyle(color: _dimmed, fontSize: 11)),
+                    Text('Net', style: TextStyle(color: _dimmed, fontSize: 11)),
                     Text(_fmt(incomeTotal - expenseTotal),
                       style: TextStyle(color: incomeTotal >= expenseTotal ? _green : _red, fontSize: 18, fontWeight: FontWeight.w800)),
                   ]),

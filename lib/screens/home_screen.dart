@@ -7,21 +7,24 @@ import '../services/auth_service.dart';
 import '../services/sms_service.dart';
 import '../services/sms_parser.dart';
 import '../services/gmail_service.dart';
+import 'settings_screen.dart';
+import '../services/theme_service.dart';
+import 'all_transactions_screen.dart';
 import 'calendar_screen.dart';
 import 'month_detail_screen.dart';
 import 'today_detail_screen.dart';
 import 'account_screen.dart';
 
-// ── Design Tokens ──
-const _bg = Color(0xFF0F0F1A);
-const _surface = Color(0xFF1A1A2E);
+// ── Design Tokens (use AppColors for theme-aware values) ──
+Color get _bg => AppColors.bg;
+Color get _surface => AppColors.surface;
 const _accent = Color(0xFF6C63FF);
 const _green = Color(0xFF2ECC71);
 const _red = Color(0xFFFF6B6B);
 const _orange = Color(0xFFE67E22);
-const _border = Color(0x0FFFFFFF);
-const _muted = Color(0x99FFFFFF);
-const _dimmed = Color(0x59FFFFFF);
+Color get _border => AppColors.border;
+Color get _muted => AppColors.muted;
+Color get _dimmed => AppColors.dimmed;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -173,12 +176,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               children: [
                 _sheetHandle(),
                 const SizedBox(height: 16),
-                const Text('Add Expense', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                Text('Add Expense', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: amtCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppColors.textPrimary),
                   decoration: _inputDecoration('Amount', Icons.currency_rupee_rounded),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Enter amount';
@@ -190,12 +193,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: lblCtrl,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppColors.textPrimary),
                   decoration: _inputDecoration('Label', Icons.label_outline_rounded),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter label' : null,
                 ),
                 const SizedBox(height: 16),
-                const Align(alignment: Alignment.centerLeft, child: Text('Category', style: TextStyle(color: _muted, fontSize: 13))),
+                Align(alignment: Alignment.centerLeft, child: Text('Category', style: TextStyle(color: _muted, fontSize: 13))),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8, runSpacing: 8,
@@ -212,9 +215,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           border: Border.all(color: selected ? _accent : _border),
                         ),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(cat.icon, size: 14, color: selected ? Colors.white : Colors.white54),
+                          Icon(cat.icon, size: 14, color: selected ? Colors.white : AppColors.dimmed),
                           const SizedBox(width: 6),
-                          Text(cat.label, style: TextStyle(color: selected ? Colors.white : Colors.white54, fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text(cat.label, style: TextStyle(color: selected ? Colors.white : AppColors.dimmed, fontSize: 12, fontWeight: FontWeight.w600)),
                         ]),
                       ),
                     );
@@ -222,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 16),
                 Row(children: [
-                  const Text('Paid via', style: TextStyle(color: _muted, fontSize: 13)),
+                  Text('Paid via', style: TextStyle(color: _muted, fontSize: 13)),
                   const SizedBox(width: 12),
                   _pillButton('Bank', sheetPaidVia == PaidVia.bank, () => setSheetState(() => sheetPaidVia = PaidVia.bank)),
                   const SizedBox(width: 8),
@@ -233,11 +236,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   SizedBox(width: 20, height: 20, child: Checkbox(
                     value: devMode,
                     onChanged: (v) => setSheetState(() { devMode = v ?? false; if (!devMode) customDate = null; }),
-                    activeColor: _accent, side: const BorderSide(color: _dimmed),
+                    activeColor: _accent, side: BorderSide(color: _dimmed),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   )),
                   const SizedBox(width: 8),
-                  const Text('Developer', style: TextStyle(color: _dimmed, fontSize: 11)),
+                  Text('Developer', style: TextStyle(color: _dimmed, fontSize: 11)),
                 ]),
                 if (devMode) ...[
                   const SizedBox(height: 10),
@@ -282,13 +285,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             _sheetHandle(),
             const SizedBox(height: 16),
-            const Text('Add Income', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+            Text('Add Income', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 20),
             TextFormField(controller: incAmtCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: Colors.white), decoration: _inputDecoration('Amount', Icons.currency_rupee_rounded),
+              style: TextStyle(color: AppColors.textPrimary), decoration: _inputDecoration('Amount', Icons.currency_rupee_rounded),
               validator: (v) { if (v == null || v.trim().isEmpty) return 'Enter amount'; if (double.tryParse(v.trim()) == null) return 'Invalid number'; if (double.parse(v.trim()) <= 0) return 'Must be > 0'; return null; }),
             const SizedBox(height: 14),
-            TextFormField(controller: incLblCtrl, style: const TextStyle(color: Colors.white),
+            TextFormField(controller: incLblCtrl, style: TextStyle(color: AppColors.textPrimary),
               decoration: _inputDecoration('Label (e.g. Salary)', Icons.label_outline_rounded),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter label' : null),
             const SizedBox(height: 20),
@@ -323,7 +326,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: Form(key: _billFormKey, child: Column(mainAxisSize: MainAxisSize.min, children: [
             _sheetHandle(),
             const SizedBox(height: 16),
-            const Text('Pay Credit Card Bill', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+            Text('Pay Credit Card Bill', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Text('Outstanding: ${_fmt(outstanding)}', style: const TextStyle(color: _red, fontSize: 14)),
             const SizedBox(height: 18),
@@ -335,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             const SizedBox(height: 14),
             TextFormField(controller: _billAmountController, enabled: !payFull,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: Colors.white), decoration: _inputDecoration('Amount', Icons.currency_rupee_rounded),
+              style: TextStyle(color: AppColors.textPrimary), decoration: _inputDecoration('Amount', Icons.currency_rupee_rounded),
               validator: (v) { if (v == null || v.trim().isEmpty) return 'Enter amount'; final val = double.tryParse(v.trim()); if (val == null) return 'Invalid number'; if (val <= 0) return 'Must be > 0'; if (val > outstanding) return 'Exceeds outstanding'; return null; }),
             const SizedBox(height: 20),
             _actionButton('Pay Now', _orange, outstanding <= 0 ? null : () async {
@@ -365,7 +368,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(color: active ? _accent : _bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: active ? _accent : _border)),
-        child: Center(child: Text(label, style: TextStyle(color: active ? Colors.white : Colors.white54, fontSize: 13, fontWeight: FontWeight.w600))),
+        child: Center(child: Text(label, style: TextStyle(color: active ? Colors.white : AppColors.dimmed, fontSize: 13, fontWeight: FontWeight.w600))),
       ),
     ));
   }
@@ -384,17 +387,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       onTap: () async {
         final picked = await showDatePicker(context: ctx, initialDate: current ?? DateTime.now(),
           firstDate: DateTime(2020), lastDate: DateTime.now(),
-          builder: (context, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: _accent, surface: _surface)), child: child!));
+          builder: (context, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: ColorScheme.dark(primary: _accent, surface: _surface)), child: child!));
         if (picked != null) onPicked(picked);
       },
       child: Container(
         width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
         child: Row(children: [
-          const Icon(Icons.calendar_today_rounded, color: _dimmed, size: 18),
+          Icon(Icons.calendar_today_rounded, color: _dimmed, size: 18),
           const SizedBox(width: 12),
           Text(current != null ? DateFormat('dd MMM yyyy').format(current) : 'Select Date',
-            style: TextStyle(color: current != null ? Colors.white : _dimmed, fontSize: 14)),
+            style: TextStyle(color: current != null ? AppColors.textPrimary : _dimmed, fontSize: 14)),
         ]),
       ),
     );
@@ -430,9 +433,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('${_pendingSms.length} SMS transaction${_pendingSms.length > 1 ? 's' : ''} detected',
-              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 2),
-            const Text('Tap to review and confirm', style: TextStyle(color: _dimmed, fontSize: 10)),
+            Text('Tap to review and confirm', style: TextStyle(color: _dimmed, fontSize: 10)),
           ])),
           const Icon(Icons.chevron_right_rounded, color: _green, size: 20),
         ]),
@@ -462,9 +465,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('${_pendingGmail.length} Gmail transaction${_pendingGmail.length > 1 ? 's' : ''} detected',
-              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 2),
-            const Text('Tap to review and confirm', style: TextStyle(color: _dimmed, fontSize: 10)),
+            Text('Tap to review and confirm', style: TextStyle(color: _dimmed, fontSize: 10)),
           ])),
           const Icon(Icons.chevron_right_rounded, color: _accent, size: 20),
         ]),
@@ -489,14 +492,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Row(children: [
                 const Icon(Icons.email_rounded, color: _accent, size: 20),
                 const SizedBox(width: 10),
-                const Text('Gmail Transactions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                Text('Gmail Transactions', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
                 const Spacer(),
-                Text('${items.length} found', style: const TextStyle(color: _dimmed, fontSize: 11)),
+                Text('${items.length} found', style: TextStyle(color: _dimmed, fontSize: 11)),
               ]),
               const SizedBox(height: 16),
               if (items.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Text('All caught up', style: TextStyle(color: _dimmed, fontSize: 13)),
                 )
               else
@@ -527,10 +530,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               Text(r.isCreditCard
                                   ? (r.isCredit ? 'CC Refund / Return' : 'Credit Card Spend')
                                   : (r.isCredit ? 'Money Received' : 'Money Spent'),
-                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                                style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                               if (r.bankName != null)
                                 Text('${r.bankName}${r.accountLast4 != null ? ' · A/c ${r.accountLast4}' : ''}',
-                                  style: const TextStyle(color: _dimmed, fontSize: 10)),
+                                  style: TextStyle(color: _dimmed, fontSize: 10)),
                             ])),
                             Text('${r.isCredit ? '+' : '-'}₹${r.amount.toStringAsFixed(2)}',
                               style: TextStyle(color: r.isCredit ? _green : _red, fontSize: 15, fontWeight: FontWeight.w700)),
@@ -540,7 +543,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             width: double.infinity,
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(6)),
-                            child: Text(r.rawMessage, style: const TextStyle(color: _dimmed, fontSize: 9), maxLines: 3, overflow: TextOverflow.ellipsis),
+                            child: Text(r.rawMessage, style: TextStyle(color: _dimmed, fontSize: 9), maxLines: 3, overflow: TextOverflow.ellipsis),
                           ),
                           const SizedBox(height: 10),
                           Row(children: [
@@ -552,7 +555,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 if (_gmailService.pending.isEmpty && ctx.mounted) Navigator.pop(ctx);
                               },
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: _dimmed, side: const BorderSide(color: _border),
+                                foregroundColor: _dimmed, side: BorderSide(color: _border),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                               child: const Text('Dismiss', style: TextStyle(fontSize: 12)),
@@ -640,16 +643,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Row(children: [
                 const Icon(Icons.email_rounded, color: _accent, size: 20),
                 const SizedBox(width: 10),
-                const Text('Gmail Scan Results', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                Text('Gmail Scan Results', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
                 const Spacer(),
-                Text('${scanResults.length} found', style: const TextStyle(color: _dimmed, fontSize: 11)),
+                Text('${scanResults.length} found', style: TextStyle(color: _dimmed, fontSize: 11)),
               ]),
               const SizedBox(height: 6),
-              const Text('Review detected transactions from your Gmail', style: TextStyle(color: _dimmed, fontSize: 11)),
+              Text('Review detected transactions from your Gmail', style: TextStyle(color: _dimmed, fontSize: 11)),
               const SizedBox(height: 12),
               if (scanResults.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Text('No transactions to review', style: TextStyle(color: _dimmed, fontSize: 13)),
                 )
               else ...[
@@ -668,17 +671,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           for (int i = 0; i < selected.length; i++) selected[i] = newVal;
                         }),
                         activeColor: _accent, checkColor: Colors.white,
-                        side: const BorderSide(color: _dimmed, width: 1.5),
+                        side: BorderSide(color: _dimmed, width: 1.5),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         visualDensity: VisualDensity.compact,
                       )),
                       const SizedBox(width: 8),
                       Text(allSelected ? 'Deselect All' : 'Select All',
-                        style: const TextStyle(color: _dimmed, fontSize: 11, fontWeight: FontWeight.w500)),
+                        style: TextStyle(color: _dimmed, fontSize: 11, fontWeight: FontWeight.w500)),
                     ]),
                   ),
                   const Spacer(),
-                  Text('$selectedCount selected', style: const TextStyle(color: _dimmed, fontSize: 11)),
+                  Text('$selectedCount selected', style: TextStyle(color: _dimmed, fontSize: 11)),
                 ]),
                 const SizedBox(height: 10),
                 ConstrainedBox(
@@ -705,7 +708,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               value: isSelected,
                               onChanged: (_) => setSheetState(() => selected[i] = !selected[i]),
                               activeColor: _accent, checkColor: Colors.white,
-                              side: const BorderSide(color: _dimmed, width: 1.5),
+                              side: BorderSide(color: _dimmed, width: 1.5),
                               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               visualDensity: VisualDensity.compact,
                             )),
@@ -721,8 +724,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                             const SizedBox(width: 10),
                             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(r.label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                              Text(DateFormat('dd MMM · hh:mm a').format(r.dateTime), style: const TextStyle(color: _dimmed, fontSize: 9)),
+                              Text(r.label, style: TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                              Text(DateFormat('dd MMM · hh:mm a').format(r.dateTime), style: TextStyle(color: _dimmed, fontSize: 9)),
                             ])),
                             Text('${r.isCredit ? '+' : '-'}₹${r.amount.toStringAsFixed(0)}',
                               style: TextStyle(color: r.isCredit ? _green : _red, fontSize: 13, fontWeight: FontWeight.w700)),
@@ -737,7 +740,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Expanded(child: SizedBox(height: 46, child: OutlinedButton(
                     onPressed: () { if (ctx.mounted) Navigator.pop(ctx); },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: _dimmed, side: const BorderSide(color: _border),
+                      foregroundColor: _dimmed, side: BorderSide(color: _border),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text('Dismiss', style: TextStyle(fontSize: 13)),
@@ -789,14 +792,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Row(children: [
                 const Icon(Icons.sms_rounded, color: _accent, size: 20),
                 const SizedBox(width: 10),
-                const Text('SMS Transactions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                Text('SMS Transactions', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
                 const Spacer(),
-                Text('${items.length} found', style: const TextStyle(color: _dimmed, fontSize: 11)),
+                Text('${items.length} found', style: TextStyle(color: _dimmed, fontSize: 11)),
               ]),
               const SizedBox(height: 16),
               if (items.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Text('All caught up', style: TextStyle(color: _dimmed, fontSize: 13)),
                 )
               else
@@ -827,10 +830,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               Text(r.isCreditCard
                                   ? (r.isCredit ? 'CC Refund / Return' : 'Credit Card Spend')
                                   : (r.isCredit ? 'Money Received' : 'Money Spent'),
-                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                                style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                               if (r.bankName != null)
                                 Text('${r.bankName}${r.accountLast4 != null ? ' · A/c ${r.accountLast4}' : ''}',
-                                  style: const TextStyle(color: _dimmed, fontSize: 10)),
+                                  style: TextStyle(color: _dimmed, fontSize: 10)),
                             ])),
                             Text('${r.isCredit ? '+' : '-'}₹${r.amount.toStringAsFixed(2)}',
                               style: TextStyle(color: r.isCredit ? _green : _red, fontSize: 15, fontWeight: FontWeight.w700)),
@@ -841,7 +844,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             width: double.infinity,
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(6)),
-                            child: Text(r.rawMessage, style: const TextStyle(color: _dimmed, fontSize: 9), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            child: Text(r.rawMessage, style: TextStyle(color: _dimmed, fontSize: 9), maxLines: 2, overflow: TextOverflow.ellipsis),
                           ),
                           const SizedBox(height: 10),
                           Row(children: [
@@ -853,7 +856,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 if (_smsService.pending.isEmpty && ctx.mounted) Navigator.pop(ctx);
                               },
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: _dimmed, side: const BorderSide(color: _border),
+                                foregroundColor: _dimmed, side: BorderSide(color: _border),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                               child: const Text('Dismiss', style: TextStyle(fontSize: 12)),
@@ -940,16 +943,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Row(children: [
                 const Icon(Icons.inbox_rounded, color: _accent, size: 20),
                 const SizedBox(width: 10),
-                const Text('SMS Scan Results', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                Text('SMS Scan Results', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
                 const Spacer(),
-                Text('${scanResults.length} found', style: const TextStyle(color: _dimmed, fontSize: 11)),
+                Text('${scanResults.length} found', style: TextStyle(color: _dimmed, fontSize: 11)),
               ]),
               const SizedBox(height: 6),
-              const Text('Review detected transactions from your SMS inbox', style: TextStyle(color: _dimmed, fontSize: 11)),
+              Text('Review detected transactions from your SMS inbox', style: TextStyle(color: _dimmed, fontSize: 11)),
               const SizedBox(height: 12),
               if (scanResults.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Text('No transactions to review', style: TextStyle(color: _dimmed, fontSize: 13)),
                 )
               else ...[
@@ -971,7 +974,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           }),
                           activeColor: _accent,
                           checkColor: Colors.white,
-                          side: const BorderSide(color: _dimmed, width: 1.5),
+                          side: BorderSide(color: _dimmed, width: 1.5),
                           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           visualDensity: VisualDensity.compact,
                         ),
@@ -979,12 +982,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       const SizedBox(width: 8),
                       Text(
                         allSelected ? 'Deselect All' : 'Select All',
-                        style: const TextStyle(color: _dimmed, fontSize: 11, fontWeight: FontWeight.w500),
+                        style: TextStyle(color: _dimmed, fontSize: 11, fontWeight: FontWeight.w500),
                       ),
                     ]),
                   ),
                   const Spacer(),
-                  Text('$selectedCount selected', style: const TextStyle(color: _dimmed, fontSize: 11)),
+                  Text('$selectedCount selected', style: TextStyle(color: _dimmed, fontSize: 11)),
                 ]),
                 const SizedBox(height: 10),
                 ConstrainedBox(
@@ -1014,7 +1017,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 onChanged: (_) => setSheetState(() => selected[i] = !selected[i]),
                                 activeColor: _accent,
                                 checkColor: Colors.white,
-                                side: const BorderSide(color: _dimmed, width: 1.5),
+                                side: BorderSide(color: _dimmed, width: 1.5),
                                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 visualDensity: VisualDensity.compact,
                               ),
@@ -1031,8 +1034,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                             const SizedBox(width: 10),
                             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(r.label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                              Text(DateFormat('dd MMM · hh:mm a').format(r.dateTime), style: const TextStyle(color: _dimmed, fontSize: 9)),
+                              Text(r.label, style: TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                              Text(DateFormat('dd MMM · hh:mm a').format(r.dateTime), style: TextStyle(color: _dimmed, fontSize: 9)),
                             ])),
                             Text('${r.isCredit ? '+' : '-'}₹${r.amount.toStringAsFixed(0)}',
                               style: TextStyle(color: r.isCredit ? _green : _red, fontSize: 13, fontWeight: FontWeight.w700)),
@@ -1049,7 +1052,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       if (ctx.mounted) Navigator.pop(ctx);
                     },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: _dimmed, side: const BorderSide(color: _border),
+                      foregroundColor: _dimmed, side: BorderSide(color: _border),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text('Dismiss', style: TextStyle(fontSize: 13)),
@@ -1144,8 +1147,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(color: _accent.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: _accent.withOpacity(0.12))),
-                      child: Text(insight, style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
+                      decoration: BoxDecoration(color: AppColors.insightBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.insightBorder)),
+                      child: Text(insight, style: TextStyle(color: AppColors.insightText, fontSize: 12, fontWeight: FontWeight.w500)),
                     ),
                   if (insight != null) const SizedBox(height: 16),
 
@@ -1197,7 +1200,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const SizedBox(height: 10),
         FittedBox(
           fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
-          child: Text(_fmt(bankBalance), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+          child: Text(_fmt(bankBalance), style: TextStyle(color: AppColors.textPrimary, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
         ),
         const SizedBox(height: 16),
         Container(height: 1, color: Colors.white.withOpacity(0.1)),
@@ -1278,9 +1281,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Text('Recent', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+          Text('Recent', style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
           const Spacer(),
-          Text('Today · ${recent.length} item${recent.length > 1 ? 's' : ''}', style: const TextStyle(color: _dimmed, fontSize: 11)),
+          Text('Today · ${recent.length} item${recent.length > 1 ? 's' : ''}', style: TextStyle(color: _dimmed, fontSize: 11)),
         ]),
         const SizedBox(height: 12),
         ...recent.map((t) => Padding(
@@ -1293,8 +1296,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(t.label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-              Text(_txnSubtitle(t), style: const TextStyle(color: _dimmed, fontSize: 10)),
+              Text(t.label, style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+              Text(_txnSubtitle(t), style: TextStyle(color: _dimmed, fontSize: 10)),
             ])),
             Text('${t.isIncome ? '+' : '-'}${_fmtShort(t.amount)}',
               style: TextStyle(color: _txnColor(t), fontSize: 13, fontWeight: FontWeight.w700)),
@@ -1370,7 +1373,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(label, style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 2),
-            Text(subtitle, style: const TextStyle(color: _dimmed, fontSize: 11)),
+            Text(subtitle, style: TextStyle(color: _dimmed, fontSize: 11)),
           ])),
           Icon(Icons.chevron_right_rounded, color: color.withOpacity(0.3), size: 20),
         ]),
@@ -1393,100 +1396,49 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ]),
         ),
         const SizedBox(height: 8),
-        if (!_auth.isDeveloper)
-          ListTile(leading: const Icon(Icons.person_rounded, color: Colors.white70),
-            title: const Text('Account', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-            onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen())); }),
-        ListTile(leading: const Icon(Icons.home_rounded, color: Colors.white70),
-          title: const Text('Home', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+        ListTile(leading: Icon(Icons.home_rounded, color: AppColors.drawerIcon),
+          title: Text('Home', style: TextStyle(color: AppColors.drawerText, fontWeight: FontWeight.w500)),
           onTap: () => Navigator.pop(context)),
-        ListTile(leading: const Icon(Icons.calendar_month_rounded, color: Colors.white70),
-          title: const Text('Calendar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+        ListTile(leading: Icon(Icons.calendar_month_rounded, color: AppColors.drawerIcon),
+          title: Text('Calendar', style: TextStyle(color: AppColors.drawerText, fontWeight: FontWeight.w500)),
           onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen())); }),
-        const Divider(color: _border, height: 1, indent: 16, endIndent: 16),
-        const SizedBox(height: 4),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(children: [
-            const Icon(Icons.sms_rounded, color: Colors.white70, size: 22),
-            const SizedBox(width: 14),
-            const Expanded(child: Text('SMS Auto-Entry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 14))),
-            StatefulBuilder(builder: (ctx, setSwitchState) {
-              return Switch(
-                value: _smsService.isEnabled,
-                activeColor: _accent,
-                onChanged: (v) async {
-                  if (v) {
-                    final granted = await _smsService.requestPermissions();
-                    if (!granted) {
-                      if (mounted) _snack('SMS permission denied');
-                      return;
-                    }
-                  }
-                  await _smsService.setEnabled(v);
-                  setSwitchState(() {});
-                  setState(() {});
-                },
-              );
-            }),
-          ]),
-        ),
-        ListTile(
-          leading: const Icon(Icons.inbox_rounded, color: Colors.white70),
-          title: const Text('Scan SMS Inbox', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-          subtitle: const Text('Find past bank transactions', style: TextStyle(color: _dimmed, fontSize: 11)),
+        ListTile(leading: Icon(Icons.list_alt_rounded, color: AppColors.drawerIcon),
+          title: Text('All Transactions', style: TextStyle(color: AppColors.drawerText, fontWeight: FontWeight.w500)),
+          subtitle: Text('Search, filter & manage', style: TextStyle(color: _dimmed, fontSize: 11)),
+          onTap: () async { Navigator.pop(context); await Navigator.push(context, MaterialPageRoute(builder: (_) => const AllTransactionsScreen())); await _loadData(); }),
+        Divider(color: _border, height: 1, indent: 16, endIndent: 16),
+        ListTile(leading: Icon(Icons.inbox_rounded, color: AppColors.drawerIcon),
+          title: Text('Scan SMS Inbox', style: TextStyle(color: AppColors.drawerText, fontWeight: FontWeight.w500)),
+          subtitle: Text('Find past bank transactions', style: TextStyle(color: _dimmed, fontSize: 11)),
           onTap: () { Navigator.pop(context); _scanSmsInbox(); },
         ),
-        const Divider(color: _border, height: 1, indent: 16, endIndent: 16),
-        const SizedBox(height: 4),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(children: [
-            const Icon(Icons.email_rounded, color: Colors.white70, size: 22),
-            const SizedBox(width: 14),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Gmail Auto-Entry', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 14)),
-              if (_gmailService.userEmail != null)
-                Text(_gmailService.userEmail!, style: const TextStyle(color: _dimmed, fontSize: 10)),
-            ])),
-            StatefulBuilder(builder: (ctx, setSwitchState) {
-              return Switch(
-                value: _gmailService.isEnabled,
-                activeColor: _accent,
-                onChanged: (v) async {
-                  if (v && !_gmailService.isSignedIn) {
-                    final ok = await _gmailService.signIn();
-                    if (!ok) {
-                      if (mounted) _snack('Google sign-in failed');
-                      return;
-                    }
-                  }
-                  await _gmailService.setEnabled(v);
-                  if (v) _checkForNewGmail();
-                  setSwitchState(() {});
-                  setState(() {});
-                },
-              );
-            }),
-          ]),
-        ),
-        ListTile(
-          leading: const Icon(Icons.mark_email_read_rounded, color: Colors.white70),
-          title: const Text('Scan Gmail Inbox', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-          subtitle: const Text('Find bank emails from last 30 days', style: TextStyle(color: _dimmed, fontSize: 11)),
+        ListTile(leading: Icon(Icons.mark_email_read_rounded, color: AppColors.drawerIcon),
+          title: Text('Scan Gmail Inbox', style: TextStyle(color: AppColors.drawerText, fontWeight: FontWeight.w500)),
+          subtitle: Text('Find bank emails from last 30 days', style: TextStyle(color: _dimmed, fontSize: 11)),
           onTap: () { Navigator.pop(context); _scanGmailInbox(); },
         ),
+        const Spacer(),
+        Divider(color: _border, height: 1, indent: 16, endIndent: 16),
+        ListTile(leading: Icon(Icons.settings_rounded, color: AppColors.drawerIcon),
+          title: Text('Settings', style: TextStyle(color: AppColors.drawerText, fontWeight: FontWeight.w500)),
+          onTap: () async {
+            Navigator.pop(context);
+            await Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+            setState(() {}); // refresh in case theme/gmail changed
+          },
+        ),
+        const SizedBox(height: 8),
       ])),
     );
   }
 
   InputDecoration _inputDecoration(String hint, IconData icon) {
     return InputDecoration(
-      hintText: hint, hintStyle: const TextStyle(color: _dimmed),
+      hintText: hint, hintStyle: TextStyle(color: _dimmed),
       prefixIcon: Icon(icon, color: _muted, size: 20), filled: true, fillColor: _bg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _border)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _border)),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _accent, width: 1.5)),
       errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)),
     );
@@ -1516,18 +1468,18 @@ class _QuickStatCard extends StatelessWidget {
           Row(children: [
             Icon(icon, color: accentColor, size: 15),
             const SizedBox(width: 6),
-            Expanded(child: Text(label, style: const TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w500))),
-            const Icon(Icons.chevron_right_rounded, color: _dimmed, size: 14),
+            Expanded(child: Text(label, style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w500))),
+            Icon(Icons.chevron_right_rounded, color: _dimmed, size: 14),
           ]),
           const SizedBox(height: 2),
-          Text(sublabel, style: const TextStyle(color: _dimmed, fontSize: 10)),
+          Text(sublabel, style: TextStyle(color: _dimmed, fontSize: 10)),
           const SizedBox(height: 8),
           // Expense line
           Row(children: [
             Container(width: 4, height: 4, decoration: const BoxDecoration(color: _red, shape: BoxShape.circle)),
             const SizedBox(width: 6),
             Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
-              child: Text(expense, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)))),
+              child: Text(expense, style: TextStyle(color: AppColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)))),
           ]),
           if (income != null) ...[
             const SizedBox(height: 4),
@@ -1568,18 +1520,18 @@ class _PieChartCardState extends State<_PieChartCard> {
       decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Text('Spending Breakdown', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+          Text('Spending Breakdown', style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
           const Spacer(),
-          Text(DateFormat('MMM yyyy').format(DateTime.now()), style: const TextStyle(color: _dimmed, fontSize: 11)),
+          Text(DateFormat('MMM yyyy').format(DateTime.now()), style: TextStyle(color: _dimmed, fontSize: 11)),
         ]),
         if (widget.isEmpty) ...[
           const SizedBox(height: 32),
           Center(child: Column(children: [
             Icon(Icons.pie_chart_outline_rounded, size: 40, color: Colors.white.withOpacity(0.06)),
             const SizedBox(height: 10),
-            const Text('No expenses this month', style: TextStyle(color: _dimmed, fontSize: 12)),
+            Text('No expenses this month', style: TextStyle(color: _dimmed, fontSize: 12)),
             const SizedBox(height: 2),
-            const Text('Add an expense to see your breakdown', style: TextStyle(color: Color(0x33FFFFFF), fontSize: 10)),
+            Text('Add an expense to see your breakdown', style: TextStyle(color: Color(0x33FFFFFF), fontSize: 10)),
           ])),
           const SizedBox(height: 32),
         ] else ...[
@@ -1594,19 +1546,19 @@ class _PieChartCardState extends State<_PieChartCard> {
                     _touchedIndex = response.touchedSection!.touchedSectionIndex;
                   });
                 }),
-                sectionsSpace: 2, centerSpaceRadius: 45,
+                sectionsSpace: 2, centerSpaceRadius: 45, centerSpaceColor: _surface,
                 sections: _buildSections(),
               )),
               _touchedIndex >= 0 && _touchedIndex < widget.sorted.length
                   ? Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text(widget.sorted[_touchedIndex].key.label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                      Text(widget.sorted[_touchedIndex].key.label, style: TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 2),
                       Text(widget.fmt(widget.sorted[_touchedIndex].value), style: TextStyle(color: widget.sorted[_touchedIndex].key.color, fontSize: 11, fontWeight: FontWeight.w600)),
                     ])
                   : Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Text('Total', style: TextStyle(color: _dimmed, fontSize: 10)),
+                      Text('Total', style: TextStyle(color: _dimmed, fontSize: 10)),
                       const SizedBox(height: 2),
-                      Text(widget.fmtShort(widget.total), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                      Text(widget.fmtShort(widget.total), style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
                     ]),
             ]),
           ),
@@ -1620,7 +1572,7 @@ class _PieChartCardState extends State<_PieChartCard> {
                 Container(width: 8, height: 8, decoration: BoxDecoration(color: e.key.color, borderRadius: BorderRadius.circular(2))),
                 const SizedBox(width: 8),
                 Expanded(child: Text('${e.key.label} · ${widget.fmtShort(e.value)} ($pct%)',
-                  style: const TextStyle(color: _muted, fontSize: 12))),
+                  style: TextStyle(color: _muted, fontSize: 12))),
               ]),
             );
           }),
@@ -1696,22 +1648,22 @@ class _MonthlyBarChart extends StatelessWidget {
       decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Text('Monthly Trend', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+          Text('Monthly Trend', style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
           const Spacer(),
           _legendDot(_green, 'Income'),
           const SizedBox(width: 10),
           _legendDot(_red, 'Expense'),
         ]),
         const SizedBox(height: 2),
-        Text('Last ${months.length} month${months.length > 1 ? 's' : ''} with activity', style: const TextStyle(color: _dimmed, fontSize: 10)),
+        Text('Last ${months.length} month${months.length > 1 ? 's' : ''} with activity', style: TextStyle(color: _dimmed, fontSize: 10)),
         if (maxVal == 0) ...[
           const SizedBox(height: 32),
           Center(child: Column(children: [
             Icon(Icons.bar_chart_rounded, size: 40, color: Colors.white.withOpacity(0.06)),
             const SizedBox(height: 10),
-            const Text('No data for previous months', style: TextStyle(color: _dimmed, fontSize: 12)),
+            Text('No data for previous months', style: TextStyle(color: _dimmed, fontSize: 12)),
             const SizedBox(height: 2),
-            const Text('Start adding transactions to see trends', style: TextStyle(color: Color(0x33FFFFFF), fontSize: 10)),
+            Text('Start adding transactions to see trends', style: TextStyle(color: Color(0x33FFFFFF), fontSize: 10)),
           ])),
           const SizedBox(height: 32),
         ] else ...[
@@ -1740,7 +1692,7 @@ class _MonthlyBarChart extends StatelessWidget {
                     if (value >= 100000) { text = '${(value / 100000).toStringAsFixed(1)}L'; }
                     else if (value >= 1000) { text = '${(value / 1000).toStringAsFixed(0)}K'; }
                     else { text = value.toStringAsFixed(0); }
-                    return Text(text, style: const TextStyle(color: _dimmed, fontSize: 9));
+                    return Text(text, style: TextStyle(color: _dimmed, fontSize: 9));
                   },
                 )),
                 bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true,
@@ -1749,13 +1701,13 @@ class _MonthlyBarChart extends StatelessWidget {
                     if (idx < 0 || idx >= months.length) return const SizedBox.shrink();
                     return Padding(padding: const EdgeInsets.only(top: 6),
                       child: Text(months[idx].label, style: TextStyle(
-                        color: months[idx].isCurrent ? Colors.white : _dimmed,
+                        color: months[idx].isCurrent ? AppColors.textPrimary : _dimmed,
                         fontSize: 10, fontWeight: months[idx].isCurrent ? FontWeight.w600 : FontWeight.w400)));
                   },
                 )),
               ),
               gridData: FlGridData(show: true, drawVerticalLine: false, horizontalInterval: maxVal > 0 ? maxVal / 3 : 1,
-                getDrawingHorizontalLine: (value) => const FlLine(color: Color(0x0AFFFFFF), strokeWidth: 1)),
+                getDrawingHorizontalLine: (value) => FlLine(color: AppColors.chartGrid, strokeWidth: 1)),
               borderData: FlBorderData(show: false),
               barGroups: List.generate(months.length, (i) {
                 final d = months[i];
@@ -1773,7 +1725,7 @@ class _MonthlyBarChart extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8)),
-              child: Text(savingsInsight, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500)),
+              child: Text(savingsInsight, style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w500)),
             ),
           ],
         ],
@@ -1785,7 +1737,7 @@ class _MonthlyBarChart extends StatelessWidget {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Container(width: 6, height: 6, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
       const SizedBox(width: 4),
-      Text(label, style: const TextStyle(color: _dimmed, fontSize: 10)),
+      Text(label, style: TextStyle(color: _dimmed, fontSize: 10)),
     ]);
   }
 }
