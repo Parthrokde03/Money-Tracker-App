@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/theme_service.dart';
 import '../services/sms_service.dart';
 import '../services/gmail_service.dart';
+import '../services/lock_service.dart';
 
 Color get _bg => AppColors.bg;
 Color get _surface => AppColors.surface;
@@ -19,6 +20,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _smsService = SmsService();
   final _gmailService = GmailService();
   final _theme = ThemeService();
+  final _lockService = LockService();
 
   void _snack(String msg) {
     if (!mounted) return;
@@ -53,6 +55,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (v) async {
                 await _theme.toggle();
                 setState(() {});
+              },
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // ── Privacy & Security ──
+          _sectionLabel('Privacy & Security'),
+          _settingsTile(
+            icon: Icons.lock_rounded,
+            title: 'App Lock',
+            subtitle: 'Use PIN, pattern, or biometric to lock',
+            trailing: Switch(
+              value: _lockService.isEnabled,
+              activeColor: _accent,
+              onChanged: (v) async {
+                if (v) {
+                  // Verify device has a lock set up
+                  final supported = await _lockService.isDeviceSupported();
+                  if (!supported) {
+                    _snack('Set up a screen lock on your device first');
+                    return;
+                  }
+                  // Test authentication before enabling
+                  await _lockService.setEnabled(true);
+                  final ok = await _lockService.authenticate();
+                  if (!ok) {
+                    await _lockService.setEnabled(false);
+                    _snack('Authentication failed');
+                    setState(() {});
+                    return;
+                  }
+                }
+                await _lockService.setEnabled(v);
+                setState(() {});
+                _snack(v ? 'App lock enabled' : 'App lock disabled');
               },
             ),
           ),
