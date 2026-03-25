@@ -5,9 +5,9 @@
 <h1 align="center">💰 Money Tracker</h1>
 
 <p align="center">
-  A personal finance tracker built with Flutter — dark, minimal, and designed for Indian users.
+  A personal finance tracker built with Flutter — dark &amp; light themes, minimal, and designed for Indian users.
   <br/>
-  Track expenses, income, credit card bills, and auto-detect bank transactions from SMS.
+  Track expenses, income, credit card bills, and auto-detect bank transactions from SMS &amp; Gmail.
 </p>
 
 <p align="center">
@@ -57,36 +57,68 @@
 - **Credit Card Management** — Track outstanding balance, pay full or partial bills
 - **Bank Balance** — Auto-calculated from all income, expenses, and bill payments
 
+### Budget & Spending Limits
+- **Monthly Budget** — Set an overall monthly spending limit with progress bar on home screen
+- **Category Budgets** — Set individual limits per category (Food, Fuel, etc.)
+- **Smart Alerts** — Warning at 80% usage, alert when budget is exceeded
+- **Toggle On/Off** — Enable budget tracking from Settings, manage budgets from the drawer menu
+
 ### 9 Expense Categories
 `Food` · `Vehicle` · `Fuel` · `Clothes` · `Groceries` · `Loan` · `Savings` · `Investments` · `Other`
 
 Each category has its own icon and color for visual clarity.
 
 ### Charts & Insights
-- **Pie Chart** — Monthly spending breakdown by category with touch interaction (tap a slice to see details)
+- **Pie Chart** — Monthly spending breakdown by category with touch interaction
 - **Bar Chart** — 6-month income vs expense trend with savings insight
 - **Smart Insights** — Auto-generated tips like "You saved ₹5K this month" or "Top spending: Food (42%)"
 
 ### SMS Auto-Entry (Android)
 - **Scan SMS Inbox** — Reads last 30 days of bank SMS and detects transactions automatically
-- **Auto-detect on Resume** — When you return to the app after a payment, it checks for new bank SMS
-- **Indian Bank Support** — Parses SMS from AU Bank, Axis, SBI, HDFC, ICICI, Kotak, PNB, and 15+ other banks
+- **Auto-detect on Resume** — Checks for new bank SMS when you return to the app
+- **Indian Bank Support** — Parses SMS from AU Bank, Axis, SBI, HDFC, ICICI, Kotak, PNB, SBM, and 15+ other banks
+- **Credit Card Detection** — Identifies credit card transactions from SMS and routes them correctly
 - **Unicode Normalization** — Handles bold/styled characters (𝐂𝐫𝐞𝐝𝐢𝐭𝐞𝐝, 𝐃𝐞𝐛𝐢𝐭𝐞𝐝) commonly used in Indian bank SMS
-- **Review & Confirm** — All detected transactions are shown for review before adding
+- **Review & Confirm** — All detected transactions shown for review before adding
+
+### Gmail Auto-Entry
+- **Google Sign-In** — Connect your Gmail account with one tap
+- **Scan Gmail Inbox** — Finds bank transaction emails from the last 30 days
+- **Auto-detect** — Checks for new bank emails automatically when enabled
+- **Parallel Fetching** — Fetches emails in batches of 10 for speed
+- **Proximity-based CC Detection** — Credit card detection only triggers near the amount mention to avoid false positives
+- **Multi-select Confirm** — Review scan results with select all / individual selection
+- **Sign Out** — Disconnect Gmail anytime from Settings with one tap
+
+### All Transactions
+- **Search** — Search by label, category, or amount
+- **Filter** — Filter by type (Expense / Income / Bill) and payment method (Bank / Credit Card)
+- **Swipe to Delete** — Swipe left on any transaction to delete with confirmation
+- **Tap to Edit** — Edit label, amount, and date for any transaction
 
 ### Screens
-- **Home** — Hero balance card, quick stats, recent transactions, pie chart, bar chart
-- **Today Detail** — All transactions for today, grouped and editable
-- **Month Detail** — Full month breakdown with edit/delete support
+- **Home** — Hero balance card, budget progress, quick stats, recent transactions, pie chart, bar chart
+- **Today Detail** — All transactions for today with swipe-to-delete and tap-to-edit
+- **Month Detail** — Full month breakdown with expandable days, swipe-to-delete, tap-to-edit
 - **Calendar** — Visual calendar with daily expense markers
-- **Account** — Developer login for advanced access
+- **All Transactions** — Searchable, filterable list of all transactions
+- **Settings** — Theme toggle, app lock, budget toggle, SMS/Gmail configuration
+
+### Dark & Light Theme
+- **Toggle** — Switch between dark and light mode from Settings
+- **Persisted** — Theme preference saved and restored on app restart
+- **Adaptive** — All screens, cards, charts, and drawer adapt to the selected theme
+
+### Privacy & Security
+- **App Lock** — Lock the app with device PIN, pattern, password, or biometric (fingerprint/face)
+- **Auto-lock** — Re-locks when the app goes to background
+- **Device Authentication** — Uses the system lock screen, no separate PIN to remember
 
 ### Other
 - **Pull to Refresh** — Swipe down on home screen to reload data
-- **Developer Mode** — Hidden login for full edit access (change dates, edit/delete any transaction)
-- **Dark UI** — Premium dark theme with purple accent, designed for comfortable use
+- **Edit & Delete for All** — Every user can edit/delete any transaction type and change dates
 - **Currency** — Indian Rupees (₹)
-- **Local Storage** — All data stored locally on device using SQLite (no cloud, no servers)
+- **Local Storage** — All data stored locally on device using SQLite
 - **Legacy Migration** — Auto-migrates data from SharedPreferences to SQLite on first run
 
 ---
@@ -95,21 +127,29 @@ Each category has its own icon and color for visual clarity.
 
 ```
 lib/
-├── main.dart                          # App entry point
+├── main.dart                          # App entry point with theme & lock
 ├── models/
 │   └── transaction.dart               # Transaction, TransactionType, PaidVia, ExpenseCategory
 ├── screens/
-│   ├── home_screen.dart               # Main dashboard with charts and SMS integration
-│   ├── today_detail_screen.dart       # Today's transactions (grouped, editable)
-│   ├── month_detail_screen.dart       # Monthly transactions (grouped, editable)
+│   ├── home_screen.dart               # Main dashboard with charts, budget, SMS & Gmail
+│   ├── today_detail_screen.dart       # Today's transactions (swipe-to-delete, tap-to-edit)
+│   ├── month_detail_screen.dart       # Monthly transactions (expandable, editable)
 │   ├── calendar_screen.dart           # Calendar view with daily markers
+│   ├── all_transactions_screen.dart   # Search, filter & manage all transactions
+│   ├── settings_screen.dart           # App settings (theme, lock, budget, SMS, Gmail)
+│   ├── lock_screen.dart               # App lock screen with biometric/PIN auth
 │   └── account_screen.dart            # Developer login screen
 └── services/
     ├── transaction_service.dart        # CRUD operations, balance calculations
     ├── database_helper.dart            # SQLite setup and migration
     ├── sms_service.dart                # SMS scanning, polling, permission handling
     ├── sms_parser.dart                 # Bank SMS parsing with Unicode normalization
-    └── auth_service.dart               # Developer authentication (ChangeNotifier)
+    ├── gmail_service.dart              # Gmail API integration, email parsing
+    ├── gmail_parser.dart               # Bank email body parsing
+    ├── budget_service.dart             # Budget management (overall & per-category)
+    ├── theme_service.dart              # Dark/light theme with AppColors
+    ├── lock_service.dart               # App lock with local_auth
+    └── auth_service.dart               # Developer authentication
 ```
 
 ---
@@ -126,6 +166,8 @@ lib/
 | Date Formatting | `intl` |
 | Preferences | `shared_preferences` |
 | SMS Reading | Native Android `MethodChannel` |
+| Gmail | `google_sign_in` + `googleapis` |
+| Authentication | `local_auth` (biometric/PIN/pattern) |
 | State Management | `StatefulWidget` + Service singletons |
 | Architecture | Simple service-based (no BLoC/Riverpod) |
 
@@ -157,30 +199,41 @@ The app requests these permissions for SMS auto-entry:
 - `READ_SMS` — To scan inbox for bank transaction messages
 - `RECEIVE_SMS` — To detect new SMS on app resume
 
-> SMS data is processed entirely on-device. Nothing is sent to any server.
+### Gmail Setup
+1. Create a project in [Google Cloud Console](https://console.cloud.google.com/)
+2. Enable the Gmail API
+3. Configure OAuth consent screen
+4. Create Android OAuth client ID with your app's SHA-1 fingerprint
+5. Connect Gmail from Settings in the app
+
+> SMS and email data is processed entirely on-device. Nothing is sent to any external server.
 
 ---
 
 ## 🎨 Design
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| Background | `#0F0F1A` | Main app background |
-| Surface | `#1A1A2E` | Cards, sheets, app bar |
-| Accent | `#6C63FF` | Primary purple accent |
-| Gradient | `#5B54E0` → `#3D2FB5` | Hero card gradient |
-| Green | `#2ECC71` | Income, positive values |
-| Red | `#FF6B6B` | Expenses, negative values |
-| Orange | `#E67E22` | Bill payments, warnings |
+Supports both dark and light themes. Colors adapt automatically.
+
+| Token | Dark | Light | Usage |
+|-------|------|-------|-------|
+| Background | `#0F0F1A` | `#F2F3F7` | Main app background |
+| Surface | `#1A1A2E` | `#FFFFFF` | Cards, sheets, app bar |
+| Accent | `#6C63FF` | `#6C63FF` | Primary purple accent |
+| Gradient | `#5B54E0` → `#3D2FB5` | Same | Hero card gradient |
+| Green | `#2ECC71` | `#2ECC71` | Income, positive values |
+| Red | `#FF6B6B` | `#FF6B6B` | Expenses, negative values |
+| Orange | `#E67E22` | `#E67E22` | Bill payments, warnings |
 
 ---
 
 ## 🔒 Privacy
 
-- **100% Offline** — No internet connection required, no data leaves your device
+- **100% Offline** — No internet required for core features (Gmail sync is optional)
 - **Local SQLite** — All transactions stored in local database
 - **SMS Processing** — Bank SMS is parsed on-device only, never uploaded
-- **No Analytics** — No tracking, no telemetry, no third-party SDKs
+- **Gmail Processing** — Email content parsed on-device, only Gmail API used for fetching
+- **App Lock** — Optional device-level authentication (PIN/pattern/biometric)
+- **No Analytics** — No tracking, no telemetry, no third-party analytics SDKs
 
 ---
 
