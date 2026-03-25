@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'screens/home_screen.dart';
 import 'screens/lock_screen.dart';
 import 'services/lock_service.dart';
+import 'services/budget_service.dart';
 import 'services/theme_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeService().init();
   await LockService().init();
+  await BudgetService().init();
   _applySystemUI(ThemeService().isDark);
   runApp(const MoneyTrackerApp());
 }

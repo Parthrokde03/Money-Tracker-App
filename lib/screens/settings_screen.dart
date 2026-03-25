@@ -3,6 +3,7 @@ import '../services/theme_service.dart';
 import '../services/sms_service.dart';
 import '../services/gmail_service.dart';
 import '../services/lock_service.dart';
+import '../services/budget_service.dart';
 
 Color get _bg => AppColors.bg;
 Color get _surface => AppColors.surface;
@@ -21,6 +22,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _gmailService = GmailService();
   final _theme = ThemeService();
   final _lockService = LockService();
+  final _budgetService = BudgetService();
 
   void _snack(String msg) {
     if (!mounted) return;
@@ -95,6 +97,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
+          const SizedBox(height: 8),
+
+          // ── Budget ──
+          _sectionLabel('Budget'),
+          _settingsTile(
+            icon: Icons.pie_chart_rounded,
+            title: 'Set Budget',
+            subtitle: 'Track your monthly spending limits',
+            trailing: Switch(
+              value: _budgetService.isEnabled,
+              activeColor: _accent,
+              onChanged: (v) async {
+                await _budgetService.setEnabled(v);
+                setState(() {});
+              },
+            ),
+          ),
           const SizedBox(height: 8),
 
           // ── SMS ──

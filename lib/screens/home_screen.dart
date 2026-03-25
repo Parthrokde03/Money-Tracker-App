@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/transaction.dart';
 import '../services/transaction_service.dart';
 import '../services/auth_service.dart';
+import '../services/budget_service.dart';
 import '../services/sms_service.dart';
 import '../services/sms_parser.dart';
 import '../services/gmail_service.dart';
@@ -39,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _auth = AuthService();
   final _smsService = SmsService();
   final _gmailService = GmailService();
+  final _budgetService = BudgetService();
 
   List<Transaction> _all = [];
   List<SmsParseResult> _pendingSms = [];
@@ -1156,6 +1158,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   _buildQuickStats(now: now, monthExpense: monthExpenseTotal, monthIncome: monthIncomeTotal, todayExpense: todayExpenseTotal, todayIncome: todayIncomeTotal, monthTxns: monthTxns, todayTxns: todayTxns),
                   const SizedBox(height: 20),
 
+                  // ── 3b. Budget Progress ──
+                  if (_budgetService.hasBudget) ...[
+                    _buildBudgetCard(monthTxns),
+                    const SizedBox(height: 20),
+                  ],
+
                   // ── 4. Recent Transactions ──
                   _buildRecentTransactions(todayTxns),
                   const SizedBox(height: 20),
@@ -1267,6 +1275,115 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         },
       )),
     ]));
+  }
+
+  // ── Budget Progress Card ──
+  Widget _buildBudgetCard(List<Transaction> monthTxns) {
+    final expenses = _service.getExpenses(monthTxns);
+    final totalSpent = _service.getTotal(expenses);
+
+    // Category spending map
+    final Map<ExpenseCategory, double> catSpending = {};
+    for (final t in expenses) {
+      final cat = t.category ?? ExpenseCategory.other;
+      catSpending[cat] = (catSpending[cat] ?? 0) + t.amount;
+    }
+
+    final overallProgress = _budgetService.getOverallProgress(totalSpent);
+    final overallAlert = _budgetService.alertLevel(overallProgress);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Text('Budget', style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+          const Spacer(),
+          Text(DateFormat('MMM yyyy').format(DateTime.now()), style: TextStyle(color: _dimmed, fontSize: 11)),
+        ]),
+        if (_budgetService.hasOverallBudget) ...[
+          const SizedBox(height: 14),
+          _budgetProgressRow(
+            label: 'Overall',
+            spent: totalSpent,
+            budget: _budgetService.overallBudget,
+            progress: overallProgress.clamp(0.0, 1.0),
+            alert: overallAlert,
+          ),
+        ],
+        if (_budgetService.hasCategoryBudgets) ...[
+          const SizedBox(height: 12),
+          ..._budgetService.categoryBudgets.entries.map((e) {
+            final spent = catSpending[e.key] ?? 0;
+            final prog = _budgetService.getCategoryProgress(e.key, spent);
+            final alert = _budgetService.alertLevel(prog);
+            return Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _budgetProgressRow(
+                label: e.key.label,
+                spent: spent,
+                budget: e.value,
+                progress: prog.clamp(0.0, 1.0),
+                alert: alert,
+                icon: e.key.icon,
+                color: e.key.color,
+              ),
+            );
+          }),
+        ],
+        // Alert banner
+        if (_budgetService.hasOverallBudget && overallAlert > 0) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: (overallAlert == 2 ? _red : _orange).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(children: [
+              Icon(overallAlert == 2 ? Icons.warning_rounded : Icons.info_rounded,
+                color: overallAlert == 2 ? _red : _orange, size: 16),
+              const SizedBox(width: 8),
+              Expanded(child: Text(
+                overallAlert == 2
+                  ? 'You\'ve exceeded your monthly budget by ${_fmtShort(totalSpent - _budgetService.overallBudget)}'
+                  : 'You\'ve used ${(overallProgress * 100).toStringAsFixed(0)}% of your monthly budget',
+                style: TextStyle(color: overallAlert == 2 ? _red : _orange, fontSize: 11, fontWeight: FontWeight.w500),
+              )),
+            ]),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  Widget _budgetProgressRow({
+    required String label, required double spent, required double budget,
+    required double progress, required int alert, IconData? icon, Color? color,
+  }) {
+    final barColor = alert == 2 ? _red : alert == 1 ? _orange : _accent;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        if (icon != null) ...[
+          Icon(icon, size: 14, color: color ?? _accent),
+          const SizedBox(width: 6),
+        ],
+        Text(label, style: TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500)),
+        const Spacer(),
+        Text('${_fmtShort(spent)} / ${_fmtShort(budget)}', style: TextStyle(color: _dimmed, fontSize: 11)),
+      ]),
+      const SizedBox(height: 6),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: LinearProgressIndicator(
+          value: progress,
+          backgroundColor: barColor.withOpacity(0.1),
+          valueColor: AlwaysStoppedAnimation(barColor),
+          minHeight: 6,
+        ),
+      ),
+    ]);
   }
 
   // ── Recent Transactions (last 5 today) ──
@@ -1381,6 +1498,145 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  // ── Budget Sheets (from drawer) ──
+  void _showSetOverallBudgetSheet() {
+    final ctrl = TextEditingController(
+      text: _budgetService.overallBudget > 0 ? _budgetService.overallBudget.toStringAsFixed(0) : '',
+    );
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: _surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(left: 24, right: 24, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: _dimmed, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          Text('Monthly Budget', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Text('Set your total monthly spending limit', style: TextStyle(color: _dimmed, fontSize: 12)),
+          const SizedBox(height: 18),
+          TextField(
+            controller: ctrl, autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center,
+            decoration: InputDecoration(
+              hintText: '0', hintStyle: TextStyle(color: _dimmed),
+              prefixText: '₹ ', prefixStyle: TextStyle(color: _dimmed, fontSize: 24, fontWeight: FontWeight.w700),
+              filled: true, fillColor: _bg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _border)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _border)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _accent, width: 1.5)),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(children: [
+            if (_budgetService.hasOverallBudget)
+              Expanded(child: OutlinedButton(
+                onPressed: () async {
+                  await _budgetService.setOverallBudget(0);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  setState(() {});
+                  _snack('Budget removed');
+                },
+                style: OutlinedButton.styleFrom(foregroundColor: Colors.redAccent, side: const BorderSide(color: Colors.redAccent),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14)),
+                child: const Text('Remove'),
+              )),
+            if (_budgetService.hasOverallBudget) const SizedBox(width: 12),
+            Expanded(child: ElevatedButton(
+              onPressed: () async {
+                final val = double.tryParse(ctrl.text.trim());
+                if (val == null || val <= 0) return;
+                await _budgetService.setOverallBudget(val);
+                if (ctx.mounted) Navigator.pop(ctx);
+                setState(() {});
+                _snack('Budget set to ₹${val.toStringAsFixed(0)}');
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14)),
+              child: const Text('Save'),
+            )),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  void _showSetCategoryBudgetSheet() {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: _surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(left: 24, right: 24, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: _dimmed, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Text('Category Budgets', style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text('Tap a category to set its limit', style: TextStyle(color: _dimmed, fontSize: 12)),
+            const SizedBox(height: 16),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
+              child: ListView(shrinkWrap: true, children: ExpenseCategory.values.map((cat) {
+                final budget = _budgetService.categoryBudgets[cat];
+                final hasBudget = budget != null && budget > 0;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: hasBudget ? _accent.withOpacity(0.3) : _border)),
+                  child: ListTile(
+                    leading: Container(width: 34, height: 34,
+                      decoration: BoxDecoration(color: cat.color.withOpacity(0.1), borderRadius: BorderRadius.circular(9)),
+                      child: Icon(cat.icon, color: cat.color, size: 16)),
+                    title: Text(cat.label, style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                    trailing: hasBudget
+                      ? Text('₹${budget.toStringAsFixed(0)}', style: const TextStyle(color: _accent, fontSize: 13, fontWeight: FontWeight.w600))
+                      : Text('Not set', style: TextStyle(color: _dimmed, fontSize: 12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onTap: () {
+                      final catCtrl = TextEditingController(text: hasBudget ? budget.toStringAsFixed(0) : '');
+                      showDialog(context: context, builder: (dCtx) => AlertDialog(
+                        backgroundColor: _surface,
+                        title: Row(children: [Icon(cat.icon, color: cat.color, size: 20), const SizedBox(width: 10),
+                          Text(cat.label, style: TextStyle(color: AppColors.textPrimary, fontSize: 16))]),
+                        content: TextField(controller: catCtrl, autofocus: true,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: TextStyle(color: AppColors.textPrimary),
+                          decoration: InputDecoration(hintText: 'Budget amount', hintStyle: TextStyle(color: _dimmed),
+                            prefixText: '₹ ', prefixStyle: TextStyle(color: _dimmed), filled: true, fillColor: _bg,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _border)),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _border)),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent, width: 1.5)))),
+                        actions: [
+                          if (hasBudget) TextButton(onPressed: () async {
+                            await _budgetService.removeCategoryBudget(cat);
+                            if (dCtx.mounted) Navigator.pop(dCtx);
+                            setSheetState(() {}); setState(() {});
+                          }, child: const Text('Remove', style: TextStyle(color: Colors.redAccent))),
+                          TextButton(onPressed: () => Navigator.pop(dCtx), child: Text('Cancel', style: TextStyle(color: _dimmed))),
+                          TextButton(onPressed: () async {
+                            final val = double.tryParse(catCtrl.text.trim());
+                            if (val == null || val <= 0) return;
+                            await _budgetService.setCategoryBudget(cat, val);
+                            if (dCtx.mounted) Navigator.pop(dCtx);
+                            setSheetState(() {}); setState(() {});
+                          }, child: const Text('Save', style: TextStyle(color: _accent))),
+                        ],
+                      ));
+                    },
+                  ),
+                );
+              }).toList()),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   // ── Drawer ──
   Widget _buildDrawer() {
     return Drawer(
@@ -1417,6 +1673,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           subtitle: Text('Find bank emails from last 30 days', style: TextStyle(color: _dimmed, fontSize: 11)),
           onTap: () { Navigator.pop(context); _scanGmailInbox(); },
         ),
+        if (_budgetService.isEnabled) ...[
+          Divider(color: _border, height: 1, indent: 16, endIndent: 16),
+          ListTile(leading: Icon(Icons.account_balance_wallet_rounded, color: AppColors.drawerIcon),
+            title: Text('Monthly Budget', style: TextStyle(color: AppColors.drawerText, fontWeight: FontWeight.w500)),
+            subtitle: Text(
+              _budgetService.hasOverallBudget
+                ? '₹${_budgetService.overallBudget.toStringAsFixed(0)} / month'
+                : 'Set your spending limit',
+              style: TextStyle(color: _dimmed, fontSize: 11)),
+            onTap: () { Navigator.pop(context); _showSetOverallBudgetSheet(); },
+          ),
+          ListTile(leading: Icon(Icons.category_rounded, color: AppColors.drawerIcon),
+            title: Text('Category Budgets', style: TextStyle(color: AppColors.drawerText, fontWeight: FontWeight.w500)),
+            subtitle: Text(
+              _budgetService.hasCategoryBudgets
+                ? '${_budgetService.categoryBudgets.length} set'
+                : 'Set limits per category',
+              style: TextStyle(color: _dimmed, fontSize: 11)),
+            onTap: () { Navigator.pop(context); _showSetCategoryBudgetSheet(); },
+          ),
+        ],
         const Spacer(),
         Divider(color: _border, height: 1, indent: 16, endIndent: 16),
         ListTile(leading: Icon(Icons.settings_rounded, color: AppColors.drawerIcon),
